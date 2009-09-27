@@ -83,7 +83,7 @@ If (fastsib) then
   Do While (Any(countn.EQ.0).AND.(nscale.GT.scalelimit))
 
     latlon=(/ baselon, 90. /)
-    Call findsmallscale(nscale,scalelimit,latlon,llstore,grid,(countn.EQ.0),rlld,subsec,sll,sibsize,sibdim,glonlat)
+    Call findsmallscale(nscale,scalelimit,latlon,llstore,grid,(countn.EQ.0),rlld,subsec,sll,sibsize,sibdim)
 
     slonn=sll(1,1)
     slatx=sll(2,2)
@@ -462,42 +462,28 @@ Implicit None
 Integer, intent(in) :: nscale_4
 Real, dimension(1:2), intent(in) :: latlon
 Integer, dimension(1:2), intent(in) :: lldim_4
-Real, dimension(lldim_4(1),lldim_4(2),0:1), intent(out) :: coverout
+Real, dimension(lldim_4(1),lldim_4(2),0:8), intent(out) :: coverout
 real, dimension(0:132) :: faosoil
 Integer*1, dimension(1:10800,1:nscale_4) :: databuffer
 Integer*1, dimension(1:10800) :: datatemp
 Integer, dimension(1:2,1:2) :: jin,jout
-Integer ilat,ilon,jlat,recpos
+Integer ilat,ilon,jlat,recpos,i
 Integer, dimension(1:2) :: llint_4
 real nsum
-real, dimension(1:129), parameter :: clay=(/ &
-0.23,0.24,0.19,0.35,0.20,0.21,0.27,0.31,0.23,0.24, &
-0.31,0.25,0.28,0.27,0.42,0.21,0.30,0.30,0.29,0.31, &
-0.30,0.09,0.11,0.07,0.13,0.22,0.41,0.53,0.50,0.38, &
-0.37,0.46,0.34,0.29,0.36,0.31,0.30,0.27,0.33,0.20, &
-0.20,0.31,0.32,0.32,0.32,0.29,0.23,0.24,0.20,0.22, &
-0.24,0.44,0.31,0.29,0.32,0.30,0.20,0.12,0.25,0.16, &
-0.21,0.20,0.20,0.15,0.39,0.23,0.23,0.24,0.34,0.34, &
-0.26,0.49,0.41,0.42,0.41,0.41,0.05,0.05,0.05,0.04, &
-0.09,0.05,0.09,0.05,0.04,0.05,0.06,0.05,0.15,0.19, &
-0.16,0.14,0.09,0.23,0.20,0.25,0.24,0.20,0.21,0.22, &
-0.27,0.09,0.20,0.52,0.52,0.52,0.16,0.13,0.16,0.16, &
-0.26,0.15,0.16,0.19,0.20,0.20,0.17,0.20,0.17,0.16, &
-0.16,0.16,0.17,0.19,0.28,0.30,0.37,0.26,0.28 /)
-real, dimension(1:129), parameter :: sand=(/ &
-0.55,0.56,0.51,0.40,0.60,0.54,0.42,0.40,0.44,0.44, &
-0.46,0.44,0.44,0.36,0.31,0.36,0.27,0.27,0.23,0.27, &
-0.31,0.50,0.42,0.53,0.42,0.46,0.42,0.28,0.31,0.45, &
-0.47,0.36,0.54,0.38,0.39,0.38,0.37,0.39,0.35,0.49, &
-0.29,0.33,0.30,0.32,0.34,0.33,0.38,0.42,0.42,0.50, &
-0.43,0.21,0.31,0.29,0.32,0.33,0.57,0.56,0.50,0.69, &
-0.52,0.58,0.53,0.63,0.33,0.24,0.24,0.25,0.42,0.42, &
-0.54,0.23,0.25,0.26,0.24,0.25,0.78,0.78,0.81,0.86, &
-0.64,0.76,0.65,0.89,0.87,0.89,0.89,0.90,0.62,0.54, &
-0.60,0.65,0.50,0.46,0.45,0.34,0.49,0.40,0.36,0.42, &
-0.30,0.57,0.56,0.21,0.18,0.23,0.55,0.58,0.58,0.55, &
-0.22,0.63,0.55,0.55,0.51,0.44,0.69,0.34,0.52,0.56, &
-0.48,0.64,0.52,0.43,0.39,0.36,0.31,0.41,0.39 /)
+integer, dimension(0:131), parameter :: masmap=(/ 0, &
+7, 2, 2, 2, 2, 2, 2, 2, 2, 2, &
+2, 2, 2, 2, 3, 2, 3, 3, 2, 3, &
+2, 1, 2, 2, 1, 2, 3, 3, 3, 3, &
+2, 3, 2, 2, 3, 2, 3, 2, 6, 4, &
+2, 2, 6, 2, 2, 2, 2, 2, 2, 2, &
+2, 3, 2, 2, 2, 2, 1, 2, 2, 1, &
+2, 4, 2, 1, 2, 2, 2, 2, 2, 3, &
+2, 6, 3, 8, 2, 6, 1, 1, 2, 1, &
+1, 1, 1, 1, 1, 1, 1, 1, 1, 2, &
+1, 1, 1, 2, 1, 3, 4, 4, 3, 2, &
+3, 2, 2, 1, 3, 3, 4, 2, 3, 3, &
+3, 4, 4, 2, 1, 2, 2, 2, 1, 2, &
+2, 2, 3, 2, 2, 6, 6, 4, 2, 9, 9 /)
 
 ! Must be compiled using 4 byte record lengths
 Open(20,FILE='faosoil.img',ACCESS='DIRECT',FORM='UNFORMATTED',RECL=2700)
@@ -530,8 +516,10 @@ Do ilat=1,lldim_4(2)
     Call dataconvert(databuffer(llint_4(1)+1:llint_4(1)+nscale_4,1:nscale_4),faosoil,nscale_4,132)
     nsum=sum(faosoil(1:129))
     if (nsum.gt.0.) then
-      coverout(ilon,ilat,0)=dot_product(faosoil(1:129),clay(:))/nsum
-      coverout(ilon,ilat,1)=dot_product(faosoil(1:129),sand(:))/nsum
+      coverout(ilon,ilat,:)=0.
+      do i=1,129
+        coverout(ilon,ilat,masmap(i)-1)=coverout(ilon,ilat,masmap(i)-1)+faosoil(i)/nsum
+      end do
     else
       coverout(ilon,ilat,:)=0.
     end if
@@ -770,40 +758,26 @@ Use ccinterp
 Implicit None
 
 Integer, dimension(2), intent(in) :: sibdim
-Real, dimension(1:sibdim(1),1:sibdim(2),0:1), intent(out) :: coverout
+Real, dimension(1:sibdim(1),1:sibdim(2),0:8), intent(out) :: coverout
 Real aglon,aglat,alci,alcj
 Real callon,callat
 Integer, dimension(1:sibdim(1),1:sibdim(2)), intent(out) :: countn
 Integer*1, dimension(1:10800) :: databuffer
 Integer ilat,ilon,lci,lcj,nface,cpos
-real, dimension(1:129), parameter :: clay=(/ &
-0.23,0.24,0.19,0.35,0.20,0.21,0.27,0.31,0.23,0.24, &
-0.31,0.25,0.28,0.27,0.42,0.21,0.30,0.30,0.29,0.31, &
-0.30,0.09,0.11,0.07,0.13,0.22,0.41,0.53,0.50,0.38, &
-0.37,0.46,0.34,0.29,0.36,0.31,0.30,0.27,0.33,0.20, &
-0.20,0.31,0.32,0.32,0.32,0.29,0.23,0.24,0.20,0.22, &
-0.24,0.44,0.31,0.29,0.32,0.30,0.20,0.12,0.25,0.16, &
-0.21,0.20,0.20,0.15,0.39,0.23,0.23,0.24,0.34,0.34, &
-0.26,0.49,0.41,0.42,0.41,0.41,0.05,0.05,0.05,0.04, &
-0.09,0.05,0.09,0.05,0.04,0.05,0.06,0.05,0.15,0.19, &
-0.16,0.14,0.09,0.23,0.20,0.25,0.24,0.20,0.21,0.22, &
-0.27,0.09,0.20,0.52,0.52,0.52,0.16,0.13,0.16,0.16, &
-0.26,0.15,0.16,0.19,0.20,0.20,0.17,0.20,0.17,0.16, &
-0.16,0.16,0.17,0.19,0.28,0.30,0.37,0.26,0.28 /)
-real, dimension(1:129), parameter :: sand=(/ &
-0.55,0.56,0.51,0.40,0.60,0.54,0.42,0.40,0.44,0.44, &
-0.46,0.44,0.44,0.36,0.31,0.36,0.27,0.27,0.23,0.27, &
-0.31,0.50,0.42,0.53,0.42,0.46,0.42,0.28,0.31,0.45, &
-0.47,0.36,0.54,0.38,0.39,0.38,0.37,0.39,0.35,0.49, &
-0.29,0.33,0.30,0.32,0.34,0.33,0.38,0.42,0.42,0.50, &
-0.43,0.21,0.31,0.29,0.32,0.33,0.57,0.56,0.50,0.69, &
-0.52,0.58,0.53,0.63,0.33,0.24,0.24,0.25,0.42,0.42, &
-0.54,0.23,0.25,0.26,0.24,0.25,0.78,0.78,0.81,0.86, &
-0.64,0.76,0.65,0.89,0.87,0.89,0.89,0.90,0.62,0.54, &
-0.60,0.65,0.50,0.46,0.45,0.34,0.49,0.40,0.36,0.42, &
-0.30,0.57,0.56,0.21,0.18,0.23,0.55,0.58,0.58,0.55, &
-0.22,0.63,0.55,0.55,0.51,0.44,0.69,0.34,0.52,0.56, &
-0.48,0.64,0.52,0.43,0.39,0.36,0.31,0.41,0.39 /)
+integer, dimension(0:131), parameter :: masmap=(/ 0, &
+7, 2, 2, 2, 2, 2, 2, 2, 2, 2, &
+2, 2, 2, 2, 3, 2, 3, 3, 2, 3, &
+2, 1, 2, 2, 1, 2, 3, 3, 3, 3, &
+2, 3, 2, 2, 3, 2, 3, 2, 6, 4, &
+2, 2, 6, 2, 2, 2, 2, 2, 2, 2, &
+2, 3, 2, 2, 2, 2, 1, 2, 2, 1, &
+2, 4, 2, 1, 2, 2, 2, 2, 2, 3, &
+2, 6, 3, 8, 2, 6, 1, 1, 2, 1, &
+1, 1, 1, 1, 1, 1, 1, 1, 1, 2, &
+1, 1, 1, 2, 1, 3, 4, 4, 3, 2, &
+3, 2, 2, 1, 3, 3, 4, 2, 3, 3, &
+3, 4, 4, 2, 1, 2, 2, 2, 1, 2, &
+2, 2, 3, 2, 2, 6, 6, 4, 2, 9, 9 /)
 
 coverout=0
 countn=0
@@ -838,8 +812,7 @@ Do ilat=1,5400
         coverout(lci,lcj,:)=0.
         countn(lci,lcj)=0
       End If
-      coverout(lci,lcj,0)=coverout(lci,lcj,0)+clay(cpos)
-      coverout(lci,lcj,1)=coverout(lci,lcj,1)+sand(cpos)
+      coverout(lci,lcj,masmap(cpos)-1)=coverout(lci,lcj,masmap(cpos)-1)+1.
       countn(lci,lcj)=countn(lci,lcj)+1
     else
       If (countn(lci,lcj).EQ.0) then
@@ -1639,21 +1612,9 @@ implicit none
 integer, dimension(1:2), intent(in) :: sibdim
 integer, dimension(1:sibdim(1),1:sibdim(2)), intent(out) :: tdata
 real, dimension(1:sibdim(1),1:sibdim(2),0:13), intent(in) :: landdata
-real, dimension(1:sibdim(1),1:sibdim(2),0:1), intent(in) :: soildata
+real, dimension(1:sibdim(1),1:sibdim(2),0:8), intent(in) :: soildata
 real, dimension(1:sibdim(1),1:sibdim(2)), intent(in) :: lsdata
-Real, dimension(8,3) :: vecpos
-Real, dimension(1:3) :: soilvecx
-Real, dimension(1:8) :: dis
 integer ilon,ilat,pos(1),i
-
-vecpos(1,1:3)=(/ 0.09, 0.83, 0.08 /) ! Coarse - Sand/loamy sand
-vecpos(2,1:3)=(/ 0.3,  0.37, 0.33 /) ! Medium - Clay loam/Silty clay loam/Silt Loam
-vecpos(3,1:3)=(/ 0.66, 0.17, 0.17 /) ! Fine   - Clay
-vecpos(4,1:3)=(/ 0.2,  0.6,  0.2  /) ! C/M    - Sandy loam/Loam
-vecpos(5,1:3)=(/ 0.42, 0.52, 0.06 /) ! C/F    - Sandy Clay
-vecpos(6,1:3)=(/ 0.48, 0.27, 0.25 /) ! M/F    - Silty clay
-vecpos(7,1:3)=(/ 0.27, 0.58, 0.15 /) ! C/M/F  - Sandy clay loam
-vecpos(8,1:3)=(/ 0.17, 0.13, 0.70 /) ! Peat
 
 do ilon=1,sibdim(1)
   do ilat=1,sibdim(2)
@@ -1663,12 +1624,7 @@ do ilon=1,sibdim(1)
     else if (pos(1).eq.13) then
       tdata(ilon,ilat)=9 ! ice
     else
-      soilvecx(1:2)=soildata(ilon,ilat,0:1)
-      soilvecx(3)=1.-Sum(soilvecx(1:2))
-      Do i=1,8
-        dis(i)=Sum((vecpos(i,:)-soilvecx(:))**2)
-      End Do
-      pos=Minloc(dis)
+      pos=Maxloc(soildata(ilon,ilat,:))
       tdata(ilon,ilat)=pos(1)
     end if
   end do
@@ -1677,88 +1633,88 @@ end do
 return
 end
 
-subroutine calsoilusda(landdata,soildata,lsdata,sibdim,tdata)
-
-implicit none
-
-integer, dimension(1:2), intent(in) :: sibdim
-integer, dimension(1:sibdim(1),1:sibdim(2)), intent(out) :: tdata
-real, dimension(1:sibdim(1),1:sibdim(2),0:13), intent(in) :: landdata
-real, dimension(1:sibdim(1),1:sibdim(2),0:1), intent(in) :: soildata
-real, dimension(1:sibdim(1),1:sibdim(2)), intent(in) :: lsdata
-Real, dimension(12,7,2) :: vecpos
-Integer, dimension(12) :: vecnum
-Integer convert(1:12)
-integer ilon,ilat,pos(1),i,usdasoil,intersect
-integer calintersect
-
-vecpos=-1.
-
-vecnum(1)=3 ! Sand
-vecpos(1,1:3,1)=(/ 0.,   0.1,  0. /)
-vecpos(1,1:3,2)=(/ 0.85, 0.9,  1. /)
-vecnum(2)=4 ! Loam sand
-vecpos(2,1:4,1)=(/ 0.,   0.15, 0.1,  0.   /)
-vecpos(2,1:4,2)=(/ 0.7,  0.85, 0.9,  0.85 /)
-vecnum(3)=7 ! Sand loam
-vecpos(3,1:7,1)=(/ 0.,   0.07, 0.07, 0.2,  0.2,  0.15, 0.  /)
-vecpos(3,1:7,2)=(/ 0.5,  0.43, 0.52, 0.52, 0.8,  0.85, 0.7 /)
-vecnum(4)=6 ! Silt loam
-vecpos(4,1:6,1)=(/ 0.12, 0.27, 0.27, 0.,   0.,  0.12 /)
-vecpos(4,1:6,2)=(/ 0.,   0.,   0.23, 0.5,  0.2, 0.08 /)
-vecnum(5)=5 ! Loam
-vecpos(5,1:5,1)=(/ 0.07, 0.27, 0.27, 0.2,  0.07 /)
-vecpos(5,1:5,2)=(/ 0.43, 0.23, 0.45, 0.52, 0.52 /)
-vecnum(6)=5 ! Sand clay loam
-vecpos(6,1:5,1)=(/ 0.2,  0.27, 0.35, 0.35, 0.2 /)
-vecpos(6,1:5,2)=(/ 0.52, 0.45, 0.45, 0.65, 0.8 /)
-vecnum(7)=4 ! Silt clay loam
-vecpos(7,1:4,1)=(/ 0.27, 0.4,  0.4,  0.27 /)
-vecpos(7,1:4,2)=(/ 0.,   0.,   0.2,  0.2 /)
-vecnum(8)=4 ! Clay loam
-vecpos(8,1:4,1)=(/ 0.27, 0.4,  0.4,  0.27 /)
-vecpos(8,1:4,2)=(/ 0.2,  0.2,  0.45, 0.45 /)
-vecnum(9)=3 ! Sand clay
-vecpos(9,1:3,1)=(/ 0.35, 0.55, 0.35 /)
-vecpos(9,1:3,2)=(/ 0.45, 0.45, 0.65 /)
-vecnum(10)=3 ! Silt clay
-vecpos(10,1:3,1)=(/ 0.4,  0.6,  0.4 /)
-vecpos(10,1:3,2)=(/ 0.,   0.,   0.2 /)
-vecnum(11)=5 ! Clay
-vecpos(11,1:5,1)=(/ 0.4,  0.6,  1.,   0.55, 0.40 /)
-vecpos(11,1:5,2)=(/ 0.2,  0.,   0.,   0.45, 0.45 /)
-vecnum(12)=4 ! Silt
-vecpos(12,1:4,1)=(/ 0.,   0.12, 0.12, 0. /)
-vecpos(12,1:4,2)=(/ 0.,   0.,   0.08, 0.2 /)
-
-convert=(/ 1, 1, 4, 2, 4, 7, 2, 2, 5, 6, 3, 2 /)
-
-
-do ilon=1,sibdim(1)
-  do ilat=1,sibdim(2)
-    pos=Maxloc(landdata(ilon,ilat,1:13))
-    if (1-nint(lsdata(ilon,ilat)).eq.0) then
-      tdata(ilon,ilat)=0 ! water
-    else if (pos(1).eq.13) then
-      tdata(ilon,ilat)=9 ! ice
-    else
-      intersect=0
-      usdasoil=0
-      Do While ((Mod(intersect,2).EQ.0).and.(usdasoil.lt.12))
-        usdasoil=usdasoil+1
-        intersect=0
-        Do i=1,vecnum(usdasoil)-1
-          intersect=intersect+calintersect(vecpos(usdasoil,i,:),vecpos(usdasoil,i+1,:),soildata(ilon,ilat,:))
-        End Do
-        intersect=intersect+calintersect(vecpos(usdasoil,vecnum(usdasoil),:),vecpos(usdasoil,1,:),soildata(ilon,ilat,:))
-      End Do
-      tdata(ilon,ilat)=convert(usdasoil)
-    end if
-  end do
-end do
-
-return
-end
+!subroutine calsoilusda(landdata,soildata,lsdata,sibdim,tdata)
+!
+!implicit none
+!
+!integer, dimension(1:2), intent(in) :: sibdim
+!integer, dimension(1:sibdim(1),1:sibdim(2)), intent(out) :: tdata
+!real, dimension(1:sibdim(1),1:sibdim(2),0:13), intent(in) :: landdata
+!real, dimension(1:sibdim(1),1:sibdim(2),0:1), intent(in) :: soildata
+!real, dimension(1:sibdim(1),1:sibdim(2)), intent(in) :: lsdata
+!Real, dimension(12,7,2) :: vecpos
+!Integer, dimension(12) :: vecnum
+!Integer convert(1:12)
+!integer ilon,ilat,pos(1),i,usdasoil,intersect
+!integer calintersect
+!
+!vecpos=-1.
+!
+!vecnum(1)=3 ! Sand
+!vecpos(1,1:3,1)=(/ 0.,   0.1,  0. /)
+!vecpos(1,1:3,2)=(/ 0.85, 0.9,  1. /)
+!vecnum(2)=4 ! Loam sand
+!vecpos(2,1:4,1)=(/ 0.,   0.15, 0.1,  0.   /)
+!vecpos(2,1:4,2)=(/ 0.7,  0.85, 0.9,  0.85 /)
+!vecnum(3)=7 ! Sand loam
+!vecpos(3,1:7,1)=(/ 0.,   0.07, 0.07, 0.2,  0.2,  0.15, 0.  /)
+!vecpos(3,1:7,2)=(/ 0.5,  0.43, 0.52, 0.52, 0.8,  0.85, 0.7 /)
+!vecnum(4)=6 ! Silt loam
+!vecpos(4,1:6,1)=(/ 0.12, 0.27, 0.27, 0.,   0.,  0.12 /)
+!vecpos(4,1:6,2)=(/ 0.,   0.,   0.23, 0.5,  0.2, 0.08 /)
+!vecnum(5)=5 ! Loam
+!vecpos(5,1:5,1)=(/ 0.07, 0.27, 0.27, 0.2,  0.07 /)
+!vecpos(5,1:5,2)=(/ 0.43, 0.23, 0.45, 0.52, 0.52 /)
+!vecnum(6)=5 ! Sand clay loam
+!vecpos(6,1:5,1)=(/ 0.2,  0.27, 0.35, 0.35, 0.2 /)
+!vecpos(6,1:5,2)=(/ 0.52, 0.45, 0.45, 0.65, 0.8 /)
+!vecnum(7)=4 ! Silt clay loam
+!vecpos(7,1:4,1)=(/ 0.27, 0.4,  0.4,  0.27 /)
+!vecpos(7,1:4,2)=(/ 0.,   0.,   0.2,  0.2 /)
+!vecnum(8)=4 ! Clay loam
+!vecpos(8,1:4,1)=(/ 0.27, 0.4,  0.4,  0.27 /)
+!vecpos(8,1:4,2)=(/ 0.2,  0.2,  0.45, 0.45 /)
+!vecnum(9)=3 ! Sand clay
+!vecpos(9,1:3,1)=(/ 0.35, 0.55, 0.35 /)
+!vecpos(9,1:3,2)=(/ 0.45, 0.45, 0.65 /)
+!vecnum(10)=3 ! Silt clay
+!vecpos(10,1:3,1)=(/ 0.4,  0.6,  0.4 /)
+!vecpos(10,1:3,2)=(/ 0.,   0.,   0.2 /)
+!vecnum(11)=5 ! Clay
+!vecpos(11,1:5,1)=(/ 0.4,  0.6,  1.,   0.55, 0.40 /)
+!vecpos(11,1:5,2)=(/ 0.2,  0.,   0.,   0.45, 0.45 /)
+!vecnum(12)=4 ! Silt
+!vecpos(12,1:4,1)=(/ 0.,   0.12, 0.12, 0. /)
+!vecpos(12,1:4,2)=(/ 0.,   0.,   0.08, 0.2 /)
+!
+!convert=(/ 1, 1, 4, 2, 4, 7, 2, 2, 5, 6, 3, 2 /)
+!
+!
+!do ilon=1,sibdim(1)
+!  do ilat=1,sibdim(2)
+!    pos=Maxloc(landdata(ilon,ilat,1:13))
+!    if (1-nint(lsdata(ilon,ilat)).eq.0) then
+!      tdata(ilon,ilat)=0 ! water
+!    else if (pos(1).eq.13) then
+!      tdata(ilon,ilat)=9 ! ice
+!    else
+!      intersect=0
+!      usdasoil=0
+!      Do While ((Mod(intersect,2).EQ.0).and.(usdasoil.lt.12))
+!        usdasoil=usdasoil+1
+!        intersect=0
+!        Do i=1,vecnum(usdasoil)-1
+!          intersect=intersect+calintersect(vecpos(usdasoil,i,:),vecpos(usdasoil,i+1,:),soildata(ilon,ilat,:))
+!        End Do
+!        intersect=intersect+calintersect(vecpos(usdasoil,vecnum(usdasoil),:),vecpos(usdasoil,1,:),soildata(ilon,ilat,:))
+!      End Do
+!      tdata(ilon,ilat)=convert(usdasoil)
+!    end if
+!  end do
+!end do
+!
+!return
+!end
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! This function determines if the vertical soil vector poss intersects
@@ -1766,44 +1722,44 @@ end
 ! there is an intersection
 !
 
-Integer function calintersect(posa,posb,poss)
-
-Implicit None
-
-Real, dimension(2), intent(in) :: posa,posb,poss
-Real tempa,tempb,tempc,m,c,yi
-
-calintersect=0
-
-If (All(posa.EQ.poss).OR.All(posb.EQ.poss)) then
-  calintersect=1
-  Return
-End if
-
-If (posa(1).EQ.posb(1)) then
-  ! vertical line
-  tempa=(poss(2)-posa(2))*(poss(2)-posb(2))
-  If ((tempa.LE.0.).AND.(poss(1).EQ.posa(1))) calintersect=1
-  
-Else
-  ! non-vertical line
-  m=(posa(2)-posb(2))/(posa(1)-posb(1))
-  c=(posb(2)*posa(1)-posa(2)*posb(1))/(posa(1)-posb(1))
-  yi=m*poss(1)+c
-  
-  tempa=(yi-posa(2))*(yi-posb(2))
-  tempb=(poss(1)-posa(1))*(poss(1)-posb(1))
-  tempc=(yi-poss(2))*yi
-  
-  If ((tempa.LE.0.).AND.(tempb.LE.0.).AND.(tempc.LE.0.)) calintersect=1
-  
-End if
-
-! Special case
-If ((Sum(poss).GE.1.).AND.(Sum(posa).GE.1.).AND.(Sum(posb).GE.1.)) calintersect=0
-
-Return
-End
+!Integer function calintersect(posa,posb,poss)
+!
+!Implicit None
+!
+!Real, dimension(2), intent(in) :: posa,posb,poss
+!Real tempa,tempb,tempc,m,c,yi
+!
+!calintersect=0
+!
+!If (All(posa.EQ.poss).OR.All(posb.EQ.poss)) then
+!  calintersect=1
+!  Return
+!End if
+!
+!If (posa(1).EQ.posb(1)) then
+!  ! vertical line
+!  tempa=(poss(2)-posa(2))*(poss(2)-posb(2))
+!  If ((tempa.LE.0.).AND.(poss(1).EQ.posa(1))) calintersect=1
+!  
+!Else
+!  ! non-vertical line
+!  m=(posa(2)-posb(2))/(posa(1)-posb(1))
+!  c=(posb(2)*posa(1)-posa(2)*posb(1))/(posa(1)-posb(1))
+!  yi=m*poss(1)+c
+!  
+!  tempa=(yi-posa(2))*(yi-posb(2))
+!  tempb=(poss(1)-posa(1))*(poss(1)-posb(1))
+!  tempc=(yi-poss(2))*yi
+!  
+!  If ((tempa.LE.0.).AND.(tempb.LE.0.).AND.(tempc.LE.0.)) calintersect=1
+!  
+!End if
+!
+!! Special case
+!If ((Sum(poss).GE.1.).AND.(Sum(posa).GE.1.).AND.(Sum(posb).GE.1.)) calintersect=0
+!
+!Return
+!End
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! This subroutine patches LAI data from Lee, S. data

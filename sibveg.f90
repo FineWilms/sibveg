@@ -5,10 +5,10 @@ Program sibveg
 Implicit None
 
 Character*80, dimension(:,:), allocatable :: options
-Character*80, dimension(1:11) :: fname
+Character*80, dimension(1:10) :: fname
 Character*80 topofile,albvisout,albnirout,rsminout
 Character*80 soilout,landtypeout,laiout,roughout
-Character*80 newtopofile,urbanout,soilmethod
+Character*80 newtopofile,urbanout
 Integer binlimit, nopts, month
 real zmin
 Logical fastsib,siblsmask,ozlaipatch
@@ -16,10 +16,10 @@ Logical fastsib,siblsmask,ozlaipatch
 Namelist/vegnml/ topofile,albvisout,albnirout,rsminout, &
                  soilout,fastsib,laiout,roughout, &
                  landtypeout,siblsmask,newtopofile, &
-                 binlimit,urbanout,soilmethod,month, &
-		 zmin,ozlaipatch
+                 binlimit,urbanout,month, &
+                 zmin,ozlaipatch
 
-Write(6,*) 'SIBVEG - SiB 1km to CC grid (AUG-08)'
+Write(6,*) 'SIBVEG - SiB 1km to CC grid (SEP-09)'
 
 ! Read switches
 nopts=1
@@ -46,7 +46,6 @@ fname(7)=laiout
 fname(8)=landtypeout
 fname(9)=urbanout
 fname(10)=newtopofile
-fname(11)=soilmethod
 
 Call createveg(options,nopts,fname,fastsib,siblsmask,ozlaipatch,month,binlimit,zmin)
 
@@ -91,7 +90,6 @@ Write(6,*) '    landtypeout="veg"'
 Write(6,*) '    fastsib=t'
 Write(6,*) '    siblsmask=t'
 Write(6,*) '    ozlaipatch=f'
-Write(6,*) '    soilmethod="near"'
 Write(6,*) '    binlimit=2'
 Write(6,*) '    zmin=40.'
 Write(6,*) '  &end'
@@ -112,13 +110,6 @@ Write(6,*) '    landtypeout   = Land-use classification filename'
 Write(6,*) '    fastsib       = Turn on fastsib mode (see notes below)'
 Write(6,*) '    siblsmask     = Define land/sea mask from SiB dataset'
 Write(6,*) '    ozlaipatch    = Replace Australian LAI with Lee, S. data'
-Write(6,*) '    soilmethod    = Method to use for soil classification'
-Write(6,*) '                    Valid methods are:'
-Write(6,*) '                    usda   - Use Zobler soil classification'
-Write(6,*) '                             via USDA types (8 types, 9=Ice)'
-Write(6,*) '                    near   - Use Zobler soil classification'
-Write(6,*) '                             via nearest sand/clay fraction'
-Write(6,*) '                             (8 types, 9=Ice)'
 Write(6,*) '    binlimit      = The minimum ratio between the grid'
 Write(6,*) '                    length scale and the length scale of'
 Write(6,*) '                    the aggregated land-use data (see notes'
@@ -184,7 +175,7 @@ Logical, intent(in) :: fastsib,siblsmask,ozlaipatch
 Integer, intent(in) :: nopts,binlimit,month
 real, intent(in) :: zmin
 Character(len=*), dimension(1:nopts,1:2), intent(in) :: options
-Character(len=*), dimension(1:11), intent(in) :: fname
+Character(len=*), dimension(1:10), intent(in) :: fname
 Character*80, dimension(1:3) :: outputdesc
 Character*80 returnoption,csize,filedesc
 Character*45 header
@@ -231,7 +222,7 @@ Write(6,*) "Schmidt   : ",schmidt
 Allocate(gridout(1:sibdim(1),1:sibdim(2)),rlld(1:sibdim(1),1:sibdim(2),1:2))
 Allocate(rawlanddata(1:sibdim(1),1:sibdim(2),0:50),albvisdata(1:sibdim(1),1:sibdim(2),0:mthrng-1))
 Allocate(laidata(1:sibdim(1),1:sibdim(2),0:mthrng-1),albnirdata(1:sibdim(1),1:sibdim(2),0:mthrng-1))
-Allocate(soildata(1:sibdim(1),1:sibdim(2),0:1),lsdata(1:sibdim(1),1:sibdim(2)))
+Allocate(soildata(1:sibdim(1),1:sibdim(2),0:8),lsdata(1:sibdim(1),1:sibdim(2)))
 Allocate(urbandata(1:sibdim(1),1:sibdim(2)),landdata(1:sibdim(1),1:sibdim(2),0:13))
 Allocate(oceandata(1:sibdim(1),1:sibdim(2)))
 
@@ -240,7 +231,7 @@ Call ccgetgrid(rlld,gridout,sibdim,lonlat,schmidt,ds)
 
 ! Read sib data
 Call getdata(rawlanddata,lonlat,gridout,rlld,sibdim,50,sibsize,'land',fastsib,ozlaipatch,binlimit,month)
-Call getdata(soildata,lonlat,gridout,rlld,sibdim,1,sibsize,'soil',fastsib,ozlaipatch,binlimit,month)
+Call getdata(soildata,lonlat,gridout,rlld,sibdim,8,sibsize,'soil',fastsib,ozlaipatch,binlimit,month)
 Call getdata(laidata,lonlat,gridout,rlld,sibdim,mthrng-1,sibsize,'lai',fastsib,ozlaipatch,binlimit,month)
 Call getdata(albvisdata,lonlat,gridout,rlld,sibdim,mthrng-1,sibsize,'albvis',fastsib,ozlaipatch,binlimit,month)
 Call getdata(albnirdata,lonlat,gridout,rlld,sibdim,mthrng-1,sibsize,'albnir',fastsib,ozlaipatch,binlimit,month)
@@ -266,7 +257,7 @@ urbandata=min(urbandata,(1.-lsdata))
 
 ! Clean-up soil, lai, veg, albedo and urban data
 Call cleandata(landdata,13,lsdata,rlld,sibdim)
-Call cleanreal(soildata,1,lsdata,rlld,sibdim)
+Call cleanreal(soildata,8,lsdata,rlld,sibdim)
 Call cleanreal(laidata,mthrng-1,lsdata,rlld,sibdim)
 Call cleanreal(albvisdata,mthrng-1,lsdata,rlld,sibdim)
 Call cleanreal(albnirdata,mthrng-1,lsdata,rlld,sibdim)
@@ -321,15 +312,7 @@ Call nclonlatgen(ncidarr,dimid,alonlat,alvl,atime,dimnum)
 
 ! Write soil type
 Write(6,*) 'Write soil type file.'
-select case(fname(11))
-  case('near')
-    Call calsoilnear(landdata,soildata,lsdata,sibdim,idata)
-  case('usda')
-    Call calsoilusda(landdata,soildata,lsdata,sibdim,idata)
-  case DEFAULT
-    write(6,*) "ERROR: Unknown soil method ",trim(fname(11))
-    stop
-end select
+Call calsoilnear(landdata,soildata,lsdata,sibdim,idata)
 Write(formout,'(1h(,i3,2hi3,1h))') sibdim(1)
 Open(1,File=fname(2))
 Write(1,'(i3,i4,2f8.3,f6.3,f8.0," ",a39)') sibdim(1),sibdim(2),lonlat(1),lonlat(2),schmidt,ds,'soil'
