@@ -60,7 +60,7 @@ Select Case(datatype)
     Write(6,*) 'Process USGS land-use dataset.'
     scalelimit=1
   Case('soil')
-    Write(6,*) 'Process FAO soil dataset.'
+    Write(6,*) 'Process HWSD soil dataset.'
     scalelimit=4
   Case('lai')
     Write(6,*) 'Process mod15_BU LAI dataset.'
@@ -463,30 +463,17 @@ Integer, intent(in) :: nscale_4
 Real, dimension(1:2), intent(in) :: latlon
 Integer, dimension(1:2), intent(in) :: lldim_4
 Real, dimension(lldim_4(1),lldim_4(2),0:8), intent(out) :: coverout
-real, dimension(0:132) :: faosoil
+real, dimension(0:13) :: faosoil
 Integer*1, dimension(1:10800,1:nscale_4) :: databuffer
 Integer*1, dimension(1:10800) :: datatemp
 Integer, dimension(1:2,1:2) :: jin,jout
 Integer ilat,ilon,jlat,recpos,i
 Integer, dimension(1:2) :: llint_4
 real nsum
-integer, dimension(0:131), parameter :: masmap=(/ 0, &
-7, 7, 2, 4, 7, 4, 4, 4, 4, 4, &
-7, 4, 4, 4, 3, 4, 4, 4, 2, 4, &
-4, 2, 2, 2, 2, 4, 7, 3, 7, 3, &
-7, 3, 2, 4, 3, 4, 3, 4, 3, 4, &
-4, 4, 4, 4, 4, 4, 4, 4, 4, 4, &
-4, 3, 4, 4, 4, 4, 4, 4, 4, 4, &
-4, 1, 4, 4, 3, 2, 2, 2, 4, 4, &
-4, 4, 3, 3, 3, 2, 1, 1, 1, 1, &
-1, 1, 2, 1, 1, 1, 1, 1, 4, 1, &
-1, 1, 4, 4, 4, 4, 4, 4, 4, 4, &
-4, 1, 2, 3, 3, 3, 4, 4, 4, 4, &
-4, 4, 4, 4, 4, 4, 7, 4, 4, 4, &
-1, 4, 3, 4, 4, 4, 4, 4, 3, 9, 9 /)
+integer, dimension(0:13), parameter :: masmap=(/ 0, 1, 1, 4, 2, 4, 7, 2, 2, 5, 6, 3, 8, 9 /)
 
 ! Must be compiled using 4 byte record lengths
-Open(20,FILE='faosoil.img',ACCESS='DIRECT',FORM='UNFORMATTED',RECL=2700)
+Open(20,FILE='usda4.img',ACCESS='DIRECT',FORM='UNFORMATTED',RECL=2700)
 
 ! To speed-up the code, 43200x(nscale) blocks of the sib file are read
 ! at a time.  The data is then averaged in memory.  This system speeds-up the
@@ -498,7 +485,7 @@ Call solvejshift(latlon(1),jin,jout,30)
 Do ilat=1,lldim_4(2)
 
   if ((mod(ilat,10).eq.0).or.(ilat.eq.lldim_4(2))) then
-    Write(6,*) 'FAO - ',ilat,'/',lldim_4(2)
+    Write(6,*) 'HWSD - ',ilat,'/',lldim_4(2)
   end if
   
   ! Read data
@@ -513,11 +500,11 @@ Do ilat=1,lldim_4(2)
   
   Do ilon=1,lldim_4(1)
     llint_4(1)=(ilon-1)*nscale_4
-    Call dataconvert(databuffer(llint_4(1)+1:llint_4(1)+nscale_4,1:nscale_4),faosoil,nscale_4,132)
-    nsum=sum(faosoil(1:129))
+    Call dataconvert(databuffer(llint_4(1)+1:llint_4(1)+nscale_4,1:nscale_4),faosoil,nscale_4,13)
+    nsum=sum(faosoil(1:13))
     if (nsum.gt.0.) then
       coverout(ilon,ilat,:)=0.
-      do i=1,129
+      do i=1,13
         coverout(ilon,ilat,masmap(i)-1)=coverout(ilon,ilat,masmap(i)-1)+faosoil(i)/nsum
       end do
     else
@@ -764,33 +751,20 @@ Real callon,callat
 Integer, dimension(1:sibdim(1),1:sibdim(2)), intent(out) :: countn
 Integer*1, dimension(1:10800) :: databuffer
 Integer ilat,ilon,lci,lcj,nface,cpos
-integer, dimension(0:131), parameter :: masmap=(/ 0, &
-7, 7, 2, 4, 7, 4, 4, 4, 4, 4, &
-7, 4, 4, 4, 3, 4, 4, 4, 2, 4, &
-4, 2, 2, 2, 2, 4, 7, 3, 7, 3, &
-7, 3, 2, 4, 3, 4, 3, 4, 3, 4, &
-4, 4, 4, 4, 4, 4, 4, 4, 4, 4, &
-4, 3, 4, 4, 4, 4, 4, 4, 4, 4, &
-4, 1, 4, 4, 3, 2, 2, 2, 4, 4, &
-4, 4, 3, 3, 3, 2, 1, 1, 1, 1, &
-1, 1, 2, 1, 1, 1, 1, 1, 4, 1, &
-1, 1, 4, 4, 4, 4, 4, 4, 4, 4, &
-4, 1, 2, 3, 3, 3, 4, 4, 4, 4, &
-4, 4, 4, 4, 4, 4, 7, 4, 4, 4, &
-1, 4, 3, 4, 4, 4, 4, 4, 3, 9, 9 /)
+integer, dimension(0:13), parameter :: masmap=(/ 0, 1, 1, 4, 2, 4, 7, 2, 2, 5, 6, 3, 8, 9 /)
 
 coverout=0
 countn=0
 
-Write(6,*) "Read FAO data (stream)"
+Write(6,*) "Read HWSD data (stream)"
 
 ! Must be compiled using 4 byte rsibrd lengths
-Open(20,FILE='faosoil.img',ACCESS='DIRECT',FORM='UNFORMATTED',RECL=2700)
+Open(20,FILE='usda4.img',ACCESS='DIRECT',FORM='UNFORMATTED',RECL=2700)
 
 Do ilat=1,5400
 
   if (mod(ilat,10).eq.0) then
-    Write(6,*) 'FAO - ',ilat,'/ 5400'
+    Write(6,*) 'HWSD - ',ilat,'/ 5400'
   end if
   
   ! Read data
