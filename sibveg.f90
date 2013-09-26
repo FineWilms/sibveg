@@ -188,7 +188,7 @@ Real, dimension(1:3,1:2) :: alonlat
 Real, dimension(1:2) :: lonlat
 Real, dimension(1:12) :: atime
 Real, dimension(1) :: alvl
-Real schmidt,dsx,ds,urbanfrac
+Real schmidt,dsx,ds,urbanfrac,rlon,rlat
 Integer, dimension(:,:), allocatable :: idata
 Integer, dimension(1:2) :: sibdim
 Integer, dimension(1:4) :: dimnum,dimid,dimcount
@@ -196,6 +196,7 @@ Integer, dimension(0:4) :: ncidarr
 Integer, dimension(1:6) :: adate
 Integer, dimension(1:9) :: varid
 Integer sibsize,tunit,i,j,ierr,sibmax(1),mthrng
+Integer, parameter :: caipatch=0 ! 0=normal, 1=block, 2=flat
 
 mthrng=1
 if (month.eq.0) then
@@ -244,10 +245,210 @@ oceandata(:,:)=rawlanddata(:,:,19)
 ! remove SiB classes >13
 Call sibfix(landdata,rawlanddata,rlld,sibdim)
 
+
+! PATCH
+select case(caipatch)
+  case(1)
+    write(6,*) "Apply CAI block patch"
+    do i=1,sibdim(1)
+      do j=1,sibdim(2)
+        rlon=rlld(i,j,1)
+	rlat=rlld(i,j,2)
+	if (rlat.lt.0..and.rlat.gt.-56.) then
+	  if (rlon.gt.-86..and.rlon.lt.-76.) then
+	    landdata(i,j,1:13)=0.
+	    landdata(i,j,0)=1.	    
+	    oceandata(i,j)=1.
+	    soildata(i,j,0:8)=0.
+	    urbandata(i,j)=0.
+	    albvisdata(i,j,:)=0.08
+	    albnirdata(i,j,:)=0.08
+	    laidata(i,j,:)=0.
+          else if (rlon.ge.-76..and.rlon.le.-45.) then
+	    landdata(i,j,0:13)=0. ! south america
+	    landdata(i,j,4)=1. ! check
+	    oceandata(i,j)=0.
+	    soildata(i,j,0:8)=0.
+	    soildata(i,j,3)=1. ! check    
+	    urbandata(i,j)=0.
+	    albvisdata(i,j,:)=0.12 ! check
+	    albnirdata(i,j,:)=0.12 ! check
+	    laidata(i,j,:)=2.5 ! check
+	  else if (rlon.gt.-45.and.rlon.lt.-34.) then	    
+	    landdata(i,j,1:13)=0.
+	    landdata(i,j,0)=1.	    
+	    oceandata(i,j)=1.
+	    soildata(i,j,0:8)=0.
+	    urbandata(i,j)=0.
+	    albvisdata(i,j,:)=0.08
+	    albnirdata(i,j,:)=0.08
+	    laidata(i,j,:)=0.
+	  end if
+	end if
+	
+	if (rlat.lt.0..and.rlat.gt.-35.) then
+	  if (rlon.gt.5..and.rlon.lt.10.) then
+	    landdata(i,j,1:13)=0.
+	    landdata(i,j,0)=1.	    
+	    oceandata(i,j)=1.
+	    soildata(i,j,0:8)=0.
+	    urbandata(i,j)=0.
+	    albvisdata(i,j,:)=0.08
+	    albnirdata(i,j,:)=0.08
+	    laidata(i,j,:)=0.
+          else if (rlon.ge.10..and.rlon.le.40.) then
+	    landdata(i,j,0:13)=0. ! africa
+	    landdata(i,j,4)=1. ! check
+	    oceandata(i,j)=0.
+	    soildata(i,j,0:8)=0.
+	    soildata(i,j,3)=1. ! check    
+	    urbandata(i,j)=0.
+	    albvisdata(i,j,:)=0.12 ! check
+	    albnirdata(i,j,:)=0.12 ! check
+	    laidata(i,j,:)=2.5 ! check
+	  else if (rlon.gt.40.and.rlon.lt.42.5) then	    
+	    landdata(i,j,1:13)=0.
+	    landdata(i,j,0)=1.	    
+	    oceandata(i,j)=1.
+	    soildata(i,j,0:8)=0.
+	    urbandata(i,j)=0.
+	    albvisdata(i,j,:)=0.08
+	    albnirdata(i,j,:)=0.08
+	    laidata(i,j,:)=0.
+	  end if
+	end if
+	
+	if (rlat.lt.-10..and.rlat.gt.-12.) then
+	  if (rlon.gt.112..and.rlon.lt.154.) then
+	    landdata(i,j,1:13)=0.
+	    landdata(i,j,0)=1.	    
+	    oceandata(i,j)=1.
+	    soildata(i,j,0:8)=0.
+	    urbandata(i,j)=0.
+	    albvisdata(i,j,:)=0.08
+	    albnirdata(i,j,:)=0.08
+	    laidata(i,j,:)=0.
+	  end if
+	else if (rlat.le.-12..and.rlat.ge.-36.5) then
+	  if (rlon.gt.112..and.rlon.lt.115.) then
+	    landdata(i,j,1:13)=0.
+	    landdata(i,j,0)=1.	    
+	    oceandata(i,j)=1.
+	    soildata(i,j,0:8)=0.
+	    urbandata(i,j)=0.
+	    albvisdata(i,j,:)=0.08
+	    albnirdata(i,j,:)=0.08
+	    laidata(i,j,:)=0.
+          else if (rlon.ge.115..and.rlon.le.151.) then
+	    if (rlat.lt.-32..and.rlon.gt.124..and.rlon.lt.138.) then
+	    landdata(i,j,1:13)=0.
+	    landdata(i,j,0)=1.	    
+	    oceandata(i,j)=1.
+	    soildata(i,j,0:8)=0.
+	    urbandata(i,j)=0.
+	    albvisdata(i,j,:)=0.08
+	    albnirdata(i,j,:)=0.08
+	    laidata(i,j,:)=0.	    
+	    else
+	    landdata(i,j,0:13)=0. ! australia
+	    landdata(i,j,8)=1. ! check
+	    oceandata(i,j)=0.
+	    soildata(i,j,0:8)=0.
+	    soildata(i,j,1)=1. ! check    
+	    urbandata(i,j)=0.
+	    albvisdata(i,j,:)=0.12 ! check
+	    albnirdata(i,j,:)=0.12 ! check
+	    laidata(i,j,:)=0.5 ! check
+	    end if
+	  else if (rlon.gt.151.and.rlon.lt.154.) then	    
+	    landdata(i,j,1:13)=0.
+	    landdata(i,j,0)=1.	    
+	    oceandata(i,j)=1.
+	    soildata(i,j,0:8)=0.
+	    urbandata(i,j)=0.
+	    albvisdata(i,j,:)=0.08
+	    albnirdata(i,j,:)=0.08
+	    laidata(i,j,:)=0.
+	  end if
+	else if (rlat.lt.-36.5.and.rlat.gt.-44.) then
+	  if (rlon.gt.112..and.rlon.lt.154.) then
+	    landdata(i,j,1:13)=0.
+	    landdata(i,j,0)=1.	    
+	    oceandata(i,j)=1.
+	    soildata(i,j,0:8)=0.
+	    urbandata(i,j)=0.
+	    albvisdata(i,j,:)=0.08
+	    albnirdata(i,j,:)=0.08
+	    laidata(i,j,:)=0.	
+          end if
+	end if	
+	
+      end do
+    end do  
+  case(2)
+    write(6,*) "Apply CAI flat patch"
+    do i=1,sibdim(1)
+      do j=1,sibdim(2)
+        rlon=rlld(i,j,1)
+	rlat=rlld(i,j,2)
+	if (rlat.lt.0..and.rlat.gt.-56.) then
+	  if (rlon.gt.-86..and.rlon.lt.-34.) then
+	    if (oceandata(i,j).lt.0.5) then
+	    landdata(i,j,0:13)=0. ! south america
+	    landdata(i,j,4)=1. ! check
+	    oceandata(i,j)=0.
+	    soildata(i,j,0:8)=0.
+	    soildata(i,j,3)=1. ! check    
+	    urbandata(i,j)=0.
+	    albvisdata(i,j,:)=0.12 ! check
+	    albnirdata(i,j,:)=0.12 ! check
+	    laidata(i,j,:)=2.5 ! check
+	    end if
+	  end if
+	end if
+	
+	if (rlat.lt.0..and.rlat.gt.-35.) then
+	  if (rlon.gt.5..and.rlon.lt.52.) then
+	    if (oceandata(i,j).lt.0.5) then
+	    landdata(i,j,0:13)=0. ! africa
+	    landdata(i,j,4)=1. ! check
+	    oceandata(i,j)=0.
+	    soildata(i,j,0:8)=0.
+	    soildata(i,j,3)=1. ! check    
+	    urbandata(i,j)=0.
+	    albvisdata(i,j,:)=0.12 ! check
+	    albnirdata(i,j,:)=0.12 ! check
+	    laidata(i,j,:)=2.5 ! check
+	    end if
+	  end if
+	end if
+	
+	if (rlat.lt.-10..and.rlat.gt.-50.) then
+	  if (rlon.gt.112..and.rlon.lt.180.) then
+	    if (oceandata(i,j).lt.0.5) then
+	    landdata(i,j,0:13)=0. ! australia
+	    landdata(i,j,8)=1. ! check
+	    oceandata(i,j)=0.
+	    soildata(i,j,0:8)=0.
+	    soildata(i,j,1)=1. ! check    
+	    urbandata(i,j)=0.
+	    albvisdata(i,j,:)=0.12 ! check
+	    albnirdata(i,j,:)=0.12 ! check
+	    laidata(i,j,:)=0.5 ! check
+	    end if
+          end if
+	end if	
+	
+      end do
+    end do  
+  case DEFAULT
+end select
+
+
 if (siblsmask) then
   write(6,*) "Using SiB land/sea mask"
   lsdata=landdata(:,:,0)
-  call cleantopo(tunit,fname(1),fname(10),lsdata,oceandata,sibdim)
+  call cleantopo(tunit,fname(1),fname(10),lsdata,oceandata,sibdim,caipatch,rlld)
 else
   write(6,*) "Using topography land/sea mask"
   call gettopols(tunit,fname(1),lsdata,sibdim)
@@ -624,19 +825,20 @@ end
 ! data file.
 !
 
-Subroutine cleantopo(topounit,toponame,topoout,lsmskin,oceanin,sibdim)
+Subroutine cleantopo(topounit,toponame,topoout,lsmskin,oceanin,sibdim,caipatch,rlld)
 
 Implicit None
 
-Integer, intent(in) :: topounit
+Integer, intent(in) :: topounit,caipatch
 Integer, dimension(1:2), intent(in) :: sibdim
-Integer ilout,ierr,ia,ib
+Integer ilout,ierr,ia,ib,i,j
 Character(len=*), intent(in) :: toponame,topoout
 Character*80 formout
 Character*47 dc
 Real, dimension(1:sibdim(1),1:sibdim(2)), intent(in) :: lsmskin,oceanin
+Real, dimension(1:sibdim(1),1:sibdim(2),1:2), intent(in) :: rlld
 Real, dimension(1:sibdim(1),1:sibdim(2)) :: topo,sd,lsmsk
-Real ra,rb,rc,rd
+Real ra,rb,rc,rd,rlon,rlat
 ilout=Min(sibdim(1),30) ! To be compatiable with terread
 
 Write(6,*) "Adjust topography data for consistancy with land-sea mask"
@@ -647,6 +849,70 @@ Read(topounit,*,IOSTAT=ierr) topo ! Topography data
 Read(topounit,*,IOSTAT=ierr) lsmsk ! land/sea mask (to be replaced)
 Read(topounit,*,IOSTAT=ierr) sd ! Topography standard deviation
 Close(topounit)
+
+! PATCH
+select case(caipatch)
+  case(1)
+    write(6,*) "Apply CAI block patch"
+    do i=1,sibdim(1)
+      do j=1,sibdim(2)
+        rlon=rlld(i,j,1)
+	rlat=rlld(i,j,2)
+	if (rlat.lt.0..and.rlat.gt.-56.) then
+          if (rlon.ge.-76..and.rlon.le.-45.) then
+	    topo(i,j)=0. ! south america
+	    sd(i,j)=0.
+	  end if
+	end if
+	
+	if (rlat.lt.0..and.rlat.gt.-35.) then
+          if (rlon.ge.10..and.rlon.le.40.) then
+	    topo(i,j)=0. ! africa
+	    sd(i,j)=0.
+	  end if
+	end if
+	
+	if (rlat.le.-12..and.rlat.ge.-36.5) then
+          if (rlon.ge.115..and.rlon.le.151.) then
+	    if (rlat.lt.-32..and.rlon.gt.124..and.rlon.lt.138.) then
+	    else
+	    topo(i,j)=0. ! australia
+	    sd(i,j)=0.
+	    end if
+	  end if
+	end if
+      end do
+    end do
+  case(2)
+    write(6,*) "Apply CAI flat patch"
+    do i=1,sibdim(1)
+      do j=1,sibdim(2)
+        rlon=rlld(i,j,1)
+	rlat=rlld(i,j,2)
+	if (rlat.lt.0..and.rlat.gt.-56.) then
+          if (rlon.ge.-86..and.rlon.le.-34.) then
+	    topo(i,j)=0. ! south america
+	    sd(i,j)=0.
+	  end if
+	end if
+	
+	if (rlat.lt.0..and.rlat.gt.-35.) then
+          if (rlon.ge.5..and.rlon.le.52.) then
+	    topo(i,j)=0. ! africa
+	    sd(i,j)=0.
+	  end if
+	end if
+	
+	if (rlat.le.-10..and.rlat.ge.-50.) then
+          if (rlon.ge.112..and.rlon.le.180.) then
+	    topo(i,j)=0. ! australia
+	    sd(i,j)=0.
+	  end if
+	end if
+      end do
+    end do
+  case DEFAULT
+end select
 
 If (ierr.NE.0) then
   Write(6,*) "ERROR: Cannot read file ",trim(toponame)

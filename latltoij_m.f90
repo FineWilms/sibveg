@@ -189,6 +189,11 @@ contains
           den = dxx*dyy-dyx*dxy
           ri = ig+is*((xgrid-xx4(ig,jg))*dyy-(ygrid-yy4(ig,jg))*dyx)/den
           rj = jg+js*((ygrid-yy4(ig,jg))*dxx-(xgrid-xx4(ig,jg))*dxy)/den
+          
+          ri = min(ri,1.0+1.99999*2*il)
+          ri = max(ri,1.0+0.00001*2*il)
+          rj = min(rj,1.0+1.99999*2*il)
+          rj = max(rj,1.0+0.00001*2*il)
        enddo! loop loop
        xout = 0.25*(ri+3.0) - 0.5  ! -.5 for stag; back to normal ri, rj defn
        yout = 0.25*(rj+3.0) - 0.5  ! -.5 for stag
