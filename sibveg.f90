@@ -19,7 +19,7 @@ Namelist/vegnml/ topofile,albvisout,albnirout,rsminout, &
                  binlimit,urbanout,month, &
                  zmin,ozlaipatch
 
-Write(6,*) 'SIBVEG - SiB 1km to CC grid (SEP-09)'
+Write(6,*) 'SIBVEG - SiB 1km to CC grid (APR-14)'
 
 ! Read switches
 nopts=1
@@ -241,7 +241,8 @@ write(6,*) "Preparing data..."
 ! extract appended urban data
 urbandata(:,:)=sum(rawlanddata(:,:,30:50),3)
 ! extract ocean data
-oceandata(:,:)=rawlanddata(:,:,19)
+!oceandata(:,:)=rawlanddata(:,:,19)
+oceandata(:,:)=0. ! MJT suggestion to avoid lakes at sea-level
 ! remove SiB classes >13
 Call sibfix(landdata,rawlanddata,rlld,sibdim)
 
