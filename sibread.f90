@@ -127,24 +127,24 @@ If (fastsib) then
             Allocate(coverout(lldim(1),lldim(2),0:num))
 	  
             Select Case(datatype)
-	          Case('land')
+                Case('land')
                 Call sibread(latlon,nscale,lldim,coverout)
               Case('soil')
-	            Call kmconvert(nscale,nscale_x,lldim,lldim_x,4)
+                Call kmconvert(nscale,nscale_x,lldim,lldim_x,4)
                 Call soilread(latlon,nscale_x,lldim_x,coverout)
               Case('lai')
-	            Call kmconvert(nscale,nscale_x,lldim,lldim_x,4)
-	            if (num.eq.11) then
-	              do imth=1,12
+                Call kmconvert(nscale,nscale_x,lldim,lldim_x,4)
+                if (num.eq.11) then
+                  do imth=1,12
                     Call lairead(latlon,nscale_x,lldim_x,imth,coverout(:,:,imth-1))
                   end do
                 else
                   Call lairead(latlon,nscale_x,lldim_x,month,coverout(:,:,0))
                 end if
               Case('albvis','albnir')
-	            Call kmconvert(nscale,nscale_x,lldim,lldim_x,6)
-	            if (num.eq.11) then
-	              do imth=1,12
+                Call kmconvert(nscale,nscale_x,lldim,lldim_x,6)
+                if (num.eq.11) then
+                  do imth=1,12
                     Call albedoread(latlon,nscale_x,lldim_x,imth,coverout(:,:,imth-1),datatype)
                   end do
                 else
@@ -157,16 +157,16 @@ If (fastsib) then
 
             Write(6,*) 'Start bin'
             Do i=1,lldim(1)
+              aglon=callon(latlon(1),i,nscale)	    
               Do j=1,lldim(2)
-                aglon=callon(latlon(1),i,nscale)
                 aglat=callat(latlon(2),j,nscale)
                 Call lltoijmod(aglon,aglat,alci,alcj,nface)
                 lci = nint(alci)
                 lcj = nint(alcj)
                 lcj = lcj+nface*sibdim(1)
                 If (grid(lci,lcj).GE.real(minscale)) then
-                  If (sum(coverout(i,j,:)).eq.0.) then
-	                If (countn(lci,lcj).EQ.0) Then
+                  If (sum(coverout(i,j,:))<=0.01) then
+                    If (countn(lci,lcj).EQ.0) Then
                       dataout(lci,lcj,:)=-1. ! Missing value?
                       countn(lci,lcj)=1
                     End if
@@ -318,23 +318,22 @@ If (subsec.NE.0) then
               i=int(serlon)
               j=int(serlat)
 
-              If ((i.GE.1).AND.(i.LT.lldim(1)).AND.(j.GE.1).AND.(j.LT.lldim(2))) Then
+              If ((i.GE.1).AND.(i.LE.lldim(1)).AND.(j.GE.1).AND.(j.LE.lldim(2))) Then
 	      
                 ni=i+1 ! 4 point interpolation
                 nj=j+1
 	      
                 serlon=serlon-real(i)
                 serlat=serlat-real(j)
+		
+		if (any(coverout(i,j,:)>0.)) then
+		  dataout(lci,lcj,:)=coverout(i,j,:)
+		  countn(lci,lcj)=1
+		else
+		  dataout(lci,lcj,:)=-1.
+		  countn(lci,lcj)=1
+		end if
 	
-                If (datatype.eq.'land') then		
-                  covertemp(1:2,1:2,:)=coverout(i:ni,j:nj,:)
-                else
-                  Call realfill(covertemp,coverout,lldim,i,ni,j,nj,num)
-                End if	    
-                Do k=0,num
-                  dataout(lci,lcj,k)=ipol(covertemp(:,:,k),serlon,serlat)
-                End Do
-                countn(lci,lcj)=1
               End If
                 
             End If
@@ -1593,9 +1592,9 @@ integer ilon,ilat,pos(1),i
 do ilon=1,sibdim(1)
   do ilat=1,sibdim(2)
     pos=Maxloc(landdata(ilon,ilat,1:13))
-    if (1-nint(lsdata(ilon,ilat)).eq.0) then
+    if (nint(lsdata(ilon,ilat))==1) then
       tdata(ilon,ilat)=0 ! water
-    else if (pos(1).eq.13) then
+    else if (pos(1)==13) then
       tdata(ilon,ilat)=9 ! ice
     else
       pos=Maxloc(soildata(ilon,ilat,:))

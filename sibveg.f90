@@ -921,7 +921,7 @@ If (ierr.NE.0) then
 End if
 
 lsmsk=Real(1-nint(lsmskin))
-where (((1-nint(oceanin)).eq.0).and.((1-nint(lsmskin)).eq.0))
+where (nint(oceanin)==1.and.nint(lsmskin)==1)
   topo(:,:)=0.
   sd(:,:)=0.
 end where
