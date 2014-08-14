@@ -8,6 +8,20 @@
 
 Subroutine ncinit(ncidarr,outfile,dimnum,dimvar,outputunit,adate)
 
+Integer, dimension(1:3), intent(in) :: dimnum
+Integer, dimension(0:4), intent(out) :: ncidarr
+Integer, dimension(1:4), intent(out) :: dimvar
+Integer, dimension(1:6), intent(in) :: adate
+Character(len=*), dimension(1:2), intent(in) :: outputunit
+Character(len=*), intent(in) :: outfile
+
+call ncinitgen(ncidarr,outfile,dimnum,dimvar,outputunit,adate,'even')
+
+return
+end
+
+Subroutine ncinitgen(ncidarr,outfile,dimnum,dimvar,outputunit,adate,latsp)
+
 Implicit None
 
 Include "netcdf.inc"
@@ -16,7 +30,7 @@ Integer, dimension(1:3), intent(in) :: dimnum
 Integer, dimension(0:4), intent(out) :: ncidarr
 Integer, dimension(1:4), intent(out) :: dimvar
 Integer, dimension(1:6), intent(in) :: adate
-Character(len=*), intent(in) :: outfile
+Character(len=*), intent(in) :: outfile,latsp
 Character(len=*), dimension(1:2), intent(in) :: outputunit
 Integer status,i,j,strlen
 Integer, dimension(1:4) :: dims
@@ -34,21 +48,38 @@ vardesc(2)="long_name"
 vardesc(3)="units"
 vardesc(4)="point_spacing"
 
-desc(1,:)=(/ "lon",  "longitude", "degrees_east",  "even" /)
-desc(2,:)=(/ "lat",  "latitude",  "degrees_north", "even" /)
-desc(3,:)=(/ "lev",  "level",     "layer",         "uneven" /)
-desc(4,:)=(/ "time", "time",      "hours",         "even" /)
+desc(1,1)="lon"
+desc(1,2)="longitude"
+desc(1,3)="degrees_east"
+desc(1,4)="even"
+desc(2,1)="lat"
+desc(2,2)="latitude"
+desc(2,3)="degrees_north"
+desc(2,4)="even"
+desc(3,1)="lev"
+desc(3,2)="level"
+desc(3,3)="layer"
+desc(3,4)="uneven"
+desc(4,1)="time"
+desc(4,2)="time"
+desc(4,3)="hours"
+desc(4,4)="even"
 
 desc(3,1)=outputunit(1)
 desc(3,3)=outputunit(2)
+desc(2,4)=latsp
 
-If (adate(1).NE.0) then
+If (adate(1)/=0) then
   Write(timedesc,'("hours since ",I4.4,"-",I2.2,"-",I2.2," ",I2.2,":",I2.2,":",I2.2)') adate(:)
   desc(4,3)=timedesc
 End if
 
 ! Create NetCDF file
+#ifdef usenc3
 status=nf_create(outfile,nf_clobber,ncidarr(0))
+#else
+status=nf_create(outfile,nf_netcdf4,ncidarr(0))
+#endif
 If (status /= nf_noerr) Then
   Write(6,*) "ERROR: Error opening NetCDF file (",status,")"
   Stop
@@ -57,7 +88,7 @@ End If
 ! Define dimensions
 
 Do i=1,4
-  If (dims(i).NE.1) Then
+  If (dims(i)/=1) Then
     status=nf_def_dim(ncidarr(0),desc(i,1),dims(i),ncidarr(i))
     If (status /= nf_noerr) Then
       Write(6,*) "ERROR: Error defining dim in NetCDF file (",status,"): ",trim(desc(i,2))
@@ -79,7 +110,7 @@ Do i=1,4
   End If
 End Do
 
-If (adate(1).NE.0) Then
+If (adate(1)/=0) Then
   mthnam=findmonth(adate(2))
   Write(timedesc,'(I2.2,"-",A3,"-",I4.4,":",I2.2,":",I2.2,":",I2.2)') adate(3),mthnam,adate(1),adate(4),adate(5),adate(6)
   strlen=Len_trim(timedesc)
@@ -141,24 +172,36 @@ ncidarr=0
 dims(1:3)=dimnum(1:3)
 dims(4)=nf_unlimited
 
-desc(1,:)=(/ "longitude", "degrees_east",  "even" /)
-desc(2,:)=(/ "latitude",  "degrees_north", "even" /)
-desc(3,:)=(/ "lev",       "sigma_level",   "uneven" /)
-desc(4,:)=(/ "time",      "---",           "even" /)
+desc(1,1)="longitude"
+desc(1,2)="degrees_east"
+desc(1,3)="even"
+desc(2,1)="latitude"
+desc(2,2)="degrees_north"
+desc(2,3)="even"
+desc(3,1)="lev"
+desc(3,2)="sigma_level"
+desc(3,3)="uneven"
+desc(4,1)="time"
+desc(4,2)="---"
+desc(4,3)="even"
 
 If (adate(1).NE.0) then
   Write(timedesc,'("minutes since ",I4.4,"-",I2.2,"-",I2.2," ",I2.2,":",I2.2,":",I2.2)') adate(:)
   desc(4,2)=timedesc
 Else
-  If (adate(2).EQ.1) desc(4,2)='months'
-  If (adate(3).EQ.1) desc(4,2)='days'
-  If (adate(4).EQ.1) desc(4,2)='hours'
-  If (adate(5).EQ.1) desc(4,2)='minutes'
-  If (adate(6).EQ.1) desc(4,2)='seconds'  
+  If (adate(2)==1) desc(4,2)='months'
+  If (adate(3)==1) desc(4,2)='days'
+  If (adate(4)==1) desc(4,2)='hours'
+  If (adate(5)==1) desc(4,2)='minutes'
+  If (adate(6)==1) desc(4,2)='seconds'  
 End if
 
 ! Create NetCDF file
+#ifdef usenc3
 status=nf_create(outfile,nf_clobber,ncidarr(0))
+#else
+status=nf_create(outfile,nf_netcdf4,ncidarr(0))
+#endif
 If (status /= nf_noerr) Then
   Write(6,*) "ERROR: Error opening NetCDF file (",status,")"
   Stop
@@ -166,13 +209,13 @@ End If
 
 ! Define dimensions
 Do i=1,4
-  If (dims(i).NE.1) Then
+  If (dims(i)/=1) Then
     status=nf_def_dim(ncidarr(0),desc(i,1),dims(i),ncidarr(i))
     If (status /= nf_noerr) Then
       Write(6,*) "ERROR: Error defining dim in NetCDF file (",status,"): ",trim(desc(i,2))
       Stop
     End If
-    if ((i.eq.4).and.(mode.eq.'int')) then
+    if ((i==4).and.(mode=='int')) then
       vtype=nf_int
     else
       vtype=nf_float
@@ -182,18 +225,18 @@ Do i=1,4
       Write(6,*) "ERROR: Error defining dim in NetCDF file (",status,"): ",trim(desc(i,2))
       Stop
     End If
-    If (i.EQ.3) Then
+    If (i/=3) Then
       strlen=Len_trim(desc(i,2))
       status=nf_put_att_text(ncidarr(0),dimvar(i),"long_name",strlen,trim(desc(i,2)))
       If (status /= nf_noerr) Then
         Write(6,*) "ERROR: Error defining dim in NetCDF file (",status,"): ",trim(desc(i,2))
         Stop
       End If
-      status=nf_put_att_text(ncidarr(0),dimvar(i),"positive",4,"down")
-      If (status /= nf_noerr) Then
-        Write(6,*) "ERROR: Error defining dim in NetCDF file (",status,"): ",trim(desc(i,2))
-        Stop
-      End If
+      !status=nf_put_att_text(ncidarr(0),dimvar(i),"positive",4,"down")
+      !If (status /= nf_noerr) Then
+      !  Write(6,*) "ERROR: Error defining dim in NetCDF file (",status,"): ",trim(desc(i,2))
+      !  Stop
+      !End If
     End if
     
     strlen=Len_trim(desc(i,2))
@@ -212,7 +255,7 @@ Do i=1,4
   End If
 End Do
 
-If (adate(1).NE.0) Then
+If (adate(1)/=0) Then
   mthnam=findmonth(adate(2))
   Write(timedesc,'(I2.2,"-",A3,"-",I4.4,":",I2.2,":",I2.2,":",I2.2)') adate(3),mthnam,adate(1),adate(4),adate(5),adate(6)
   strlen=Len_trim(timedesc)
@@ -293,7 +336,7 @@ End If
 !End If
 !
 
-if (numtype.eq.nf_short) then
+if (numtype==nf_short) then
   status=nf_put_att_int2(ncidarr(0),varid,"valid_min",nf_int2,1,-32500)
   If (status /= nf_noerr) Then
     Write(6,*) "ERROR: Error defining var in NetCDF file (",status,"): ",trim(elemdesc(1))
@@ -423,8 +466,8 @@ Real, dimension(1:dimnum(3)), intent(in) :: alvl
 Real, dimension(1) :: atime
 
 atime=0.
-dimnumout=1
 dimnumout(1:3)=dimnum(1:3)
+dimnumout(4)=1
 
 Call nclonlatgen(ncidarr,dimid,alonlat,alvl,atime,dimnumout)
 
@@ -453,7 +496,7 @@ Integer i,j,status,vtype
 
 Do i=1,2
   sgn=Abs(alonlat(3,i))
-  If (alonlat(1,i).GT.alonlat(2,i)) sgn=-sgn
+  If (alonlat(1,i)>alonlat(2,i)) sgn=-sgn
   Allocate(ldata(1:dimnum(i)))
   Do j=1,dimnum(i)
     ldata(j)=alonlat(1,i)+sgn*Real(j-1)
@@ -467,7 +510,7 @@ Do i=1,2
   Deallocate(ldata)
 End Do
 
-If (dimnum(3).NE.1) Then
+If (dimnum(3)/=1) Then
   status = nf_put_vara_real(ncidarr(0),dimid(3),1,dimnum(3),alvl)
   If (status /= nf_noerr) Then
     Write(6,*) "ERROR: Error writing lvl data (",status,")"
@@ -475,7 +518,74 @@ If (dimnum(3).NE.1) Then
   End If
 End If
 
-If (dimnum(4).NE.1) Then
+status=nf_inq_vartype(ncidarr(0),dimid(4),vtype)
+select case(vtype)
+  case(nf_float)
+    status = nf_put_vara_real(ncidarr(0),dimid(4),1,dimnum(4),atime)
+  case(nf_int)
+    status = nf_put_vara_int(ncidarr(0),dimid(4),1,dimnum(4),nint(atime))
+  case DEFAULT
+    write(6,*) 'ERROR: Unsupported time vartype ',vtype
+    stop
+end select
+If (status /= nf_noerr) Then
+  Write(6,*) "ERROR: Error writing time data (",status,")"
+  Stop
+End If
+
+Return
+End
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! This subroutine stores lon, lat, lvl data (array version)
+!
+
+Subroutine nclonlatarr(ncidarr,dimid,alonlat,latarr,alvl,atime,dimnum)
+
+Implicit None
+
+Include "netcdf.inc"
+
+Integer, dimension(0:4), intent(in) :: ncidarr
+Integer, dimension(1:4), intent(in) :: dimid
+Integer, dimension(1:4), intent(in) :: dimnum
+Real, dimension(1:3), intent(in) :: alonlat
+real, dimension(1:dimnum(2)), intent(in) :: latarr
+Real, dimension(1:dimnum(3)), intent(in) :: alvl
+Real, dimension(1:dimnum(4)), intent(in) :: atime
+Real, dimension(:), allocatable :: ldata
+Real sgn
+Integer i,j,status,vtype
+
+sgn=Abs(alonlat(3))
+If (alonlat(1)>alonlat(2)) sgn=-sgn
+Allocate(ldata(1:dimnum(1)))
+Do j=1,dimnum(1)
+  ldata(j)=alonlat(1)+sgn*Real(j-1)
+End Do
+  
+status = nf_put_vara_real(ncidarr(0),dimid(1),1,dimnum(1),ldata)
+If (status /= nf_noerr) Then
+  Write(6,*) "ERROR: Error writing lon data (",status,")"
+  Stop
+End If
+Deallocate(ldata)
+  
+status = nf_put_vara_real(ncidarr(0),dimid(2),1,dimnum(2),latarr)
+If (status /= nf_noerr) Then
+  Write(6,*) "ERROR: Error writing lat data (",status,")"
+  Stop
+End If
+
+If (dimnum(3)/=1) Then
+  status = nf_put_vara_real(ncidarr(0),dimid(3),1,dimnum(3),alvl)
+  If (status /= nf_noerr) Then
+    Write(6,*) "ERROR: Error writing lvl data (",status,")"
+    Stop
+  End If
+End If
+
+If (dimnum(4)/=1) Then
   status=nf_inq_vartype(ncidarr(0),dimid(4),vtype)
   select case(vtype)
     case(nf_float)
@@ -558,10 +668,12 @@ Include "netcdf.inc"
 
 Integer, dimension(0:4), intent(in) :: ncidarr
 Integer, intent(in) :: varid
-Integer, dimension(1:4), intent(in) :: startpos,dimnum
-Real, dimension(1:dimnum(1),1:dimnum(2),1:dimnum(3),1:dimnum(4)), intent(in) :: dataout
+Integer, dimension(4), intent(in) :: startpos,dimnum
+Real, dimension(dimnum(1),dimnum(2),dimnum(3),dimnum(4)), intent(in) :: dataout
+real, dimension(dimnum(1),dimnum(2),dimnum(3),dimnum(4)) :: dum
 real offset,scale
-Integer start(1:4),ncount(1:4)
+Integer, dimension(4) :: start,ncount
+integer, dimension(dimnum(1),dimnum(2),dimnum(3),dimnum(4)) :: idum
 Integer status,xtype,numofdim
 
 status = nf_inq_varndims(ncidarr(0),varid,numofdim)
@@ -584,13 +696,16 @@ ncount(1:numofdim)=dimnum(1:numofdim)
 Select Case(xtype)
 
   Case(nf_float)
-    status = nf_put_vara_real(ncidarr(0),varid,start(1:numofdim),ncount(1:numofdim),(dataout-offset)/scale)
+    dum=(dataout-offset)/scale
+    status = nf_put_vara_real(ncidarr(0),varid,start(1:numofdim),ncount(1:numofdim),dum)
 
   Case(nf_short)
-    status = nf_put_vara_int(ncidarr(0),varid,start(1:numofdim),ncount(1:numofdim),nint((dataout-offset)/scale))
+    idum=nint((dataout-offset)/scale)
+    status = nf_put_vara_int(ncidarr(0),varid,start(1:numofdim),ncount(1:numofdim),idum)
 
   Case (nf_int)
-    status = nf_put_vara_int(ncidarr(0),varid,start(1:numofdim),ncount(1:numofdim),nint((dataout-offset)/scale))
+    idum=nint((dataout-offset)/scale)
+    status = nf_put_vara_int(ncidarr(0),varid,start(1:numofdim),ncount(1:numofdim),idum)
 
   Case DEFAULT
     Write(6,*) "ERROR: Internal error in ncwritedat.  Unknown vartype ",xtype
@@ -687,3 +802,19 @@ End Select
 
 Return
 End
+
+subroutine ncatt(ncidarr,desc,rval)
+
+implicit none
+
+include 'netcdf.inc'
+
+integer, dimension(0:4), intent(in) :: ncidarr
+integer ncstatus
+real, intent(in) :: rval
+character(len=*), intent(in) :: desc
+
+ncstatus=nf_put_att_real(ncidarr(0),nf_global,desc,nf_real,1,rval)
+
+return
+end
