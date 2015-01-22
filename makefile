@@ -1,7 +1,7 @@
 FF = ifort
-XFLAGS = -O
+XFLAGS = -O -fpp
 INC = -I $(NETCDF_ROOT)/include
-LIBS = -L $(NETCDF_ROOT)/lib -L $(HDF5_HOME)/lib -lnetcdf -lnetcdff -lhdf5
+LIBS = -L $(NETCDF_ROOT)/lib -lnetcdf -lnetcdff
 
 
 OBJT = sibveg.o sibread.o readswitch.o ncwrite.o misc.o ccinterp.o\
