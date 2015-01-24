@@ -156,7 +156,7 @@ Character(len=*), dimension(1:nopts,1:2), intent(in) :: options
 Character(len=*), dimension(1:10), intent(in) :: fname
 Character*80, dimension(1:3) :: outputdesc
 Character*80 returnoption,csize,filedesc
-Character*45 header
+Character*47 header
 Character*9 formout
 Character*2 monthout
 real, dimension(:,:,:), allocatable :: laidata
@@ -166,7 +166,7 @@ Real, dimension(1:3,1:2) :: alonlat
 Real, dimension(1:2) :: lonlat
 Real, dimension(1:12) :: atime
 Real, dimension(1) :: alvl
-Real schmidt,dsx,ds,urbanfrac
+Real schmidt,dsx,ds
 Integer, dimension(:,:), allocatable :: idata
 Integer, dimension(1:2) :: sibdim
 Integer, dimension(1:4) :: dimnum,dimid,dimcount
@@ -301,7 +301,8 @@ Call nclonlatgen(ncidarr,dimid,alonlat,alvl,atime,dimnum)
 Write(6,*) 'Write soil type.'
 Call calsoilnear(landdata,soildata,lsdata,sibdim,idata)
 dimcount=(/ sibdim(1), sibdim(2), 1, 1 /)
-Call ncwritedatgen(ncidarr,Real(idata),dimcount,varid(2))
+rdata(:,:,1)=real(idata)
+Call ncwritedatgen(ncidarr,rdata(:,:,1),dimcount,varid(2))
 
 ! Write albedo file
 Write(6,*) 'Write albedo.'
@@ -362,13 +363,13 @@ where (idata>100)
   idata=idata-100
 end where
 dimcount=(/ sibdim(1), sibdim(2), 1, 1 /)
-Call ncwritedatgen(ncidarr,Real(idata),dimcount,varid(8))
+rdata(:,:,1)=real(idata)
+Call ncwritedatgen(ncidarr,rdata(:,:,1),dimcount,varid(8))
 
 ! Urban
 Write(6,*) 'Write urban fraction'
-urbanfrac=1.
 dimcount=(/ sibdim(1), sibdim(2), 1, 1 /)
-Call ncwritedatgen(ncidarr,urbandata*urbanfrac,dimcount,varid(9))
+Call ncwritedatgen(ncidarr,urbandata,dimcount,varid(9))
 
 Call ncclose(ncidarr)
 

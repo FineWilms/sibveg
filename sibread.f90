@@ -35,6 +35,7 @@ Real aglon,aglat,alci,alcj,serlon,serlat,slonn,slatx,elon,elat,tscale,baselon
 Real ipol,callon,callat,indexlon,indexlat
 Logical, intent(in) :: fastsib,ozlaipatch
 Logical, dimension(:,:), allocatable :: sermask
+logical, dimension(sibdim(1),sibdim(2)) :: msktemp
 
 dataout=0.
 countn=0
@@ -83,7 +84,8 @@ If (fastsib) then
   Do While (Any(countn.EQ.0).AND.(nscale.GT.scalelimit))
 
     latlon=(/ baselon, 90. /)
-    Call findsmallscale(nscale,scalelimit,latlon,llstore,grid,(countn.EQ.0),rlld,subsec,sll,sibsize,sibdim)
+    msktemp=(countn.EQ.0)
+    Call findsmallscale(nscale,scalelimit,latlon,llstore,grid,msktemp,rlld,subsec,sll,sibsize,sibdim)
 
     slonn=sll(1,1)
     slatx=sll(2,2)
@@ -111,7 +113,8 @@ If (fastsib) then
           Write(6,*) 'orig lldim   = ',lldim
 
           ! Check if there are any points of interest on this tile
-          Call searchdim(mode,sll,nscale,real(nscale),latlon,lldim,grid,(countn.EQ.0),rlld,sibdim)
+          msktemp=(countn.EQ.0)
+          Call searchdim(mode,sll,nscale,real(nscale),latlon,lldim,grid,msktemp,rlld,sibdim)
           Call scaleconvert(nscale,tmp,lldim,sll,sibsize)
           mode=2
       
@@ -235,7 +238,8 @@ nscale=scalelimit
 
 latlon=(/ baselon, 90. /)
 llstore=(/ 43200/nscale , 21600/nscale /)
-Call searchdim(4,sll,nscale,0.,latlon,llstore,grid,(countn.EQ.0),rlld,sibdim)
+msktemp=(countn.EQ.0)
+Call searchdim(4,sll,nscale,0.,latlon,llstore,grid,msktemp,rlld,sibdim)
 Call scaleconvert(nscale,subsec,llstore,sll,sibsize)
 slonn=sll(1,1)
 slatx=sll(2,2)
@@ -262,7 +266,8 @@ If (subsec.NE.0) then
       If (ny.NE.subsec) lldim(2)=lldim(2)+1
     
       ! Check if there are any points of interest on this tile
-      Call searchdim(4,sll,nscale,0.,latlon,lldim,grid,(countn.EQ.0),rlld,sibdim)
+      msktemp=(countn.EQ.0)
+      Call searchdim(4,sll,nscale,0.,latlon,lldim,grid,msktemp,rlld,sibdim)
       Call scaleconvert(nscale,tmp,lldim,sll,sibsize)
       If (Any(lldim(:).EQ.1)) lldim=0
       
@@ -407,7 +412,9 @@ Integer, intent(in) :: nscale
 Real, dimension(1:2), intent(in) :: latlon
 Integer, dimension(1:2), intent(in) :: lldim
 Real, dimension(lldim(1),lldim(2),0:81), intent(out) :: coverout
+real, dimension(0:81) :: datatemp_out
 Integer*1, dimension(1:43200,1:nscale) :: databuffer
+integer*1, dimension(nscale,nscale) :: datatemp_in
 Integer*1, dimension(1:43200) :: datatemp
 Integer, dimension(1:2,1:2) :: jin,jout
 Integer ilat,ilon,jlat,recpos
@@ -466,7 +473,9 @@ Do ilat=1,lldim(2)
   
   Do ilon=1,lldim(1)
     llint(1)=(ilon-1)*nscale
-    Call dataconvert(databuffer(llint(1)+1:llint(1)+nscale,1:nscale),coverout(ilon,ilat,:),nscale,81)
+    datatemp_in(:,:)=databuffer(llint(1)+1:llint(1)+nscale,1:nscale)
+    Call dataconvert(datatemp_in,datatemp_out,nscale,81)
+    coverout(ilon,ilat,:)=datatemp_out(:)
   End Do
 End Do
 
@@ -490,6 +499,7 @@ Integer, dimension(1:2), intent(in) :: lldim_4
 Real, dimension(lldim_4(1),lldim_4(2),0:8), intent(out) :: coverout
 real, dimension(0:13) :: faosoil
 Integer*1, dimension(1:10800,1:nscale_4) :: databuffer
+integer*1, dimension(nscale_4,nscale_4) :: datatemp_in
 Integer*1, dimension(1:10800) :: datatemp
 Integer, dimension(1:2,1:2) :: jin,jout
 Integer ilat,ilon,jlat,recpos,i
@@ -525,7 +535,8 @@ Do ilat=1,lldim_4(2)
   
   Do ilon=1,lldim_4(1)
     llint_4(1)=(ilon-1)*nscale_4
-    Call dataconvert(databuffer(llint_4(1)+1:llint_4(1)+nscale_4,1:nscale_4),faosoil,nscale_4,13)
+    datatemp_in(:,:)=databuffer(llint_4(1)+1:llint_4(1)+nscale_4,1:nscale_4)
+    Call dataconvert(datatemp_in,faosoil,nscale_4,13)
     nsum=sum(faosoil(1:13))
     if (nsum.gt.0.) then
       coverout(ilon,ilat,:)=0.
