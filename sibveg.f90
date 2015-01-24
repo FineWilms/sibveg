@@ -6,20 +6,19 @@ Implicit None
 
 Character*80, dimension(:,:), allocatable :: options
 Character*80, dimension(1:10) :: fname
-Character*80 topofile,albvisout,albnirout,rsminout
-Character*80 soilout,landtypeout,laiout,roughout
-Character*80 newtopofile,urbanout
+Character*80 topofile
+Character*80 landtypeout
+Character*80 newtopofile
 Integer binlimit, nopts, month
 real zmin
 Logical fastsib,siblsmask,ozlaipatch
 
-Namelist/vegnml/ topofile,albvisout,albnirout,rsminout, &
-                 soilout,fastsib,laiout,roughout, &
+Namelist/vegnml/ topofile,fastsib,                  &
                  landtypeout,siblsmask,newtopofile, &
-                 binlimit,urbanout,month, &
+                 binlimit,month,                    &
                  zmin,ozlaipatch
 
-Write(6,*) 'SIBVEG - SiB 1km to CC grid (APR-14)'
+Write(6,*) 'SIBVEG - SiB/DG 1km to CC grid (JAN-15)'
 
 ! Read switches
 nopts=1
@@ -37,14 +36,7 @@ Write(6,*) 'Namelist accepted'
 
 ! Generate veg data
 fname(1)=topofile
-fname(2)=soilout
-fname(3)=albvisout
-fname(4)=albnirout
-fname(5)=rsminout
-fname(6)=roughout
-fname(7)=laiout
 fname(8)=landtypeout
-fname(9)=urbanout
 fname(10)=newtopofile
 
 Call createveg(options,nopts,fname,fastsib,siblsmask,ozlaipatch,month,binlimit,zmin)
@@ -79,13 +71,6 @@ Write(6,*) '  &vegnml'
 Write(6,*) '    month=0'
 Write(6,*) '    topofile="topout"'
 Write(6,*) '    newtopofile="topoutb"'
-Write(6,*) '    soilout="soil"'
-Write(6,*) '    albvisout="albvis"'
-Write(6,*) '    albnirout="albnir"'
-Write(6,*) '    rsminout="rsmin"'
-Write(6,*) '    roughout="rough"'
-Write(6,*) '    laiout="lai"'
-Write(6,*) '    urbanout="urban"'
 Write(6,*) '    landtypeout="veg"'
 Write(6,*) '    fastsib=t'
 Write(6,*) '    siblsmask=t'
@@ -99,13 +84,6 @@ Write(6,*) '    month         = the month to process (1-12, 0=all)'
 Write(6,*) '    topofile      = topography (input) file'
 Write(6,*) '    newtopofile   = Output topography file name'
 Write(6,*) '                    (if siblsmask=t)'
-Write(6,*) '    soilout       = Soil filename (Zobler)'
-Write(6,*) '    albvisout     = Albedo (VIS) filename'
-Write(6,*) '    albnirout     = Albedo (NIR) filename'
-Write(6,*) '    rsminout      = RSmin filename'
-Write(6,*) '    roughout      = Roughness filename'
-Write(6,*) '    laiout        = Leaf Area Index filename'
-Write(6,*) '    urbanout      = Urban cover fraction filename'
 Write(6,*) '    landtypeout   = Land-use classification filename'
 Write(6,*) '    fastsib       = Turn on fastsib mode (see notes below)'
 Write(6,*) '    siblsmask     = Define land/sea mask from SiB dataset'
@@ -188,7 +166,7 @@ Real, dimension(1:3,1:2) :: alonlat
 Real, dimension(1:2) :: lonlat
 Real, dimension(1:12) :: atime
 Real, dimension(1) :: alvl
-Real schmidt,dsx,ds,urbanfrac,rlon,rlat
+Real schmidt,dsx,ds,urbanfrac
 Integer, dimension(:,:), allocatable :: idata
 Integer, dimension(1:2) :: sibdim
 Integer, dimension(1:4) :: dimnum,dimid,dimcount
@@ -196,10 +174,9 @@ Integer, dimension(0:4) :: ncidarr
 Integer, dimension(1:6) :: adate
 Integer, dimension(1:9) :: varid
 Integer sibsize,tunit,i,j,ierr,sibmax(1),mthrng
-Integer, parameter :: caipatch=0 ! 0=normal, 1=block, 2=flat
 
 mthrng=1
-if (month.eq.0) then
+if (month==0) then
   mthrng=12
 end if
 if ((month.lt.0).or.(month.gt.12)) then
@@ -221,235 +198,38 @@ Write(6,*) "Dimension : ",sibdim
 Write(6,*) "lon0,lat0 : ",lonlat
 Write(6,*) "Schmidt   : ",schmidt
 Allocate(gridout(1:sibdim(1),1:sibdim(2)),rlld(1:sibdim(1),1:sibdim(2),1:2))
-Allocate(rawlanddata(1:sibdim(1),1:sibdim(2),0:50),albvisdata(1:sibdim(1),1:sibdim(2),0:mthrng-1))
+Allocate(rawlanddata(1:sibdim(1),1:sibdim(2),0:81),albvisdata(1:sibdim(1),1:sibdim(2),0:mthrng-1))
 Allocate(laidata(1:sibdim(1),1:sibdim(2),0:mthrng-1),albnirdata(1:sibdim(1),1:sibdim(2),0:mthrng-1))
 Allocate(soildata(1:sibdim(1),1:sibdim(2),0:8),lsdata(1:sibdim(1),1:sibdim(2)))
-Allocate(urbandata(1:sibdim(1),1:sibdim(2)),landdata(1:sibdim(1),1:sibdim(2),0:13))
+Allocate(urbandata(1:sibdim(1),1:sibdim(2)),landdata(1:sibdim(1),1:sibdim(2),0:42))
 Allocate(oceandata(1:sibdim(1),1:sibdim(2)))
 
 ! Determine lat/lon to CC mapping
 Call ccgetgrid(rlld,gridout,sibdim,lonlat,schmidt,ds)
 
 ! Read sib data
-Call getdata(rawlanddata,lonlat,gridout,rlld,sibdim,50,sibsize,'land',fastsib,ozlaipatch,binlimit,month)
-Call getdata(soildata,lonlat,gridout,rlld,sibdim,8,sibsize,'soil',fastsib,ozlaipatch,binlimit,month)
-Call getdata(laidata,lonlat,gridout,rlld,sibdim,mthrng-1,sibsize,'lai',fastsib,ozlaipatch,binlimit,month)
-Call getdata(albvisdata,lonlat,gridout,rlld,sibdim,mthrng-1,sibsize,'albvis',fastsib,ozlaipatch,binlimit,month)
-Call getdata(albnirdata,lonlat,gridout,rlld,sibdim,mthrng-1,sibsize,'albnir',fastsib,ozlaipatch,binlimit,month)
+Call getdata(rawlanddata,lonlat,gridout,rlld,sibdim,81,      sibsize,'land',  fastsib,ozlaipatch,binlimit,month)
+Call getdata(soildata,   lonlat,gridout,rlld,sibdim,8,       sibsize,'soil',  fastsib,ozlaipatch,binlimit,month)
+Call getdata(laidata,    lonlat,gridout,rlld,sibdim,mthrng-1,sibsize,'lai',   fastsib,ozlaipatch,binlimit,month)
+Call getdata(albvisdata, lonlat,gridout,rlld,sibdim,mthrng-1,sibsize,'albvis',fastsib,ozlaipatch,binlimit,month)
+Call getdata(albnirdata, lonlat,gridout,rlld,sibdim,mthrng-1,sibsize,'albnir',fastsib,ozlaipatch,binlimit,month)
 
 write(6,*) "Preparing data..."
 ! extract appended urban data
-urbandata(:,:)=sum(rawlanddata(:,:,30:50),3)
+urbandata(:,:)=sum(rawlanddata(:,:,30:50),3)+rawlanddata(:,:,81)
 ! extract ocean data
-!oceandata(:,:)=rawlanddata(:,:,19)
-oceandata(:,:)=0. ! MJT suggestion to avoid lakes at sea-level
-! remove SiB classes >13
+where ((rawlanddata(:,:,19)+rawlanddata(:,:,79)+rawlanddata(:,:,80))>0.)
+  oceandata=rawlanddata(:,:,19)/(rawlanddata(:,:,19)+rawlanddata(:,:,79)+rawlanddata(:,:,80))
+elsewhere
+  oceandata=0.
+end where
+lsdata=real(nint(rawlanddata(:,:,19)+rawlanddata(:,:,79)+rawlanddata(:,:,80)))
+! remove SiB classes 14-50 that contain urban
 Call sibfix(landdata,rawlanddata,rlld,sibdim)
-
-
-! PATCH
-select case(caipatch)
-  case(1)
-    write(6,*) "Apply CAI block patch"
-    do i=1,sibdim(1)
-      do j=1,sibdim(2)
-        rlon=rlld(i,j,1)
-	rlat=rlld(i,j,2)
-	if (rlat.lt.0..and.rlat.gt.-56.) then
-	  if (rlon.gt.-86..and.rlon.lt.-76.) then
-	    landdata(i,j,1:13)=0.
-	    landdata(i,j,0)=1.	    
-	    oceandata(i,j)=1.
-	    soildata(i,j,0:8)=0.
-	    urbandata(i,j)=0.
-	    albvisdata(i,j,:)=0.08
-	    albnirdata(i,j,:)=0.08
-	    laidata(i,j,:)=0.
-          else if (rlon.ge.-76..and.rlon.le.-45.) then
-	    landdata(i,j,0:13)=0. ! south america
-	    landdata(i,j,4)=1. ! check
-	    oceandata(i,j)=0.
-	    soildata(i,j,0:8)=0.
-	    soildata(i,j,3)=1. ! check    
-	    urbandata(i,j)=0.
-	    albvisdata(i,j,:)=0.12 ! check
-	    albnirdata(i,j,:)=0.12 ! check
-	    laidata(i,j,:)=2.5 ! check
-	  else if (rlon.gt.-45.and.rlon.lt.-34.) then	    
-	    landdata(i,j,1:13)=0.
-	    landdata(i,j,0)=1.	    
-	    oceandata(i,j)=1.
-	    soildata(i,j,0:8)=0.
-	    urbandata(i,j)=0.
-	    albvisdata(i,j,:)=0.08
-	    albnirdata(i,j,:)=0.08
-	    laidata(i,j,:)=0.
-	  end if
-	end if
-	
-	if (rlat.lt.0..and.rlat.gt.-35.) then
-	  if (rlon.gt.5..and.rlon.lt.10.) then
-	    landdata(i,j,1:13)=0.
-	    landdata(i,j,0)=1.	    
-	    oceandata(i,j)=1.
-	    soildata(i,j,0:8)=0.
-	    urbandata(i,j)=0.
-	    albvisdata(i,j,:)=0.08
-	    albnirdata(i,j,:)=0.08
-	    laidata(i,j,:)=0.
-          else if (rlon.ge.10..and.rlon.le.40.) then
-	    landdata(i,j,0:13)=0. ! africa
-	    landdata(i,j,4)=1. ! check
-	    oceandata(i,j)=0.
-	    soildata(i,j,0:8)=0.
-	    soildata(i,j,3)=1. ! check    
-	    urbandata(i,j)=0.
-	    albvisdata(i,j,:)=0.12 ! check
-	    albnirdata(i,j,:)=0.12 ! check
-	    laidata(i,j,:)=2.5 ! check
-	  else if (rlon.gt.40.and.rlon.lt.42.5) then	    
-	    landdata(i,j,1:13)=0.
-	    landdata(i,j,0)=1.	    
-	    oceandata(i,j)=1.
-	    soildata(i,j,0:8)=0.
-	    urbandata(i,j)=0.
-	    albvisdata(i,j,:)=0.08
-	    albnirdata(i,j,:)=0.08
-	    laidata(i,j,:)=0.
-	  end if
-	end if
-	
-	if (rlat.lt.-10..and.rlat.gt.-12.) then
-	  if (rlon.gt.112..and.rlon.lt.154.) then
-	    landdata(i,j,1:13)=0.
-	    landdata(i,j,0)=1.	    
-	    oceandata(i,j)=1.
-	    soildata(i,j,0:8)=0.
-	    urbandata(i,j)=0.
-	    albvisdata(i,j,:)=0.08
-	    albnirdata(i,j,:)=0.08
-	    laidata(i,j,:)=0.
-	  end if
-	else if (rlat.le.-12..and.rlat.ge.-36.5) then
-	  if (rlon.gt.112..and.rlon.lt.115.) then
-	    landdata(i,j,1:13)=0.
-	    landdata(i,j,0)=1.	    
-	    oceandata(i,j)=1.
-	    soildata(i,j,0:8)=0.
-	    urbandata(i,j)=0.
-	    albvisdata(i,j,:)=0.08
-	    albnirdata(i,j,:)=0.08
-	    laidata(i,j,:)=0.
-          else if (rlon.ge.115..and.rlon.le.151.) then
-	    if (rlat.lt.-32..and.rlon.gt.124..and.rlon.lt.138.) then
-	    landdata(i,j,1:13)=0.
-	    landdata(i,j,0)=1.	    
-	    oceandata(i,j)=1.
-	    soildata(i,j,0:8)=0.
-	    urbandata(i,j)=0.
-	    albvisdata(i,j,:)=0.08
-	    albnirdata(i,j,:)=0.08
-	    laidata(i,j,:)=0.	    
-	    else
-	    landdata(i,j,0:13)=0. ! australia
-	    landdata(i,j,8)=1. ! check
-	    oceandata(i,j)=0.
-	    soildata(i,j,0:8)=0.
-	    soildata(i,j,1)=1. ! check    
-	    urbandata(i,j)=0.
-	    albvisdata(i,j,:)=0.12 ! check
-	    albnirdata(i,j,:)=0.12 ! check
-	    laidata(i,j,:)=0.5 ! check
-	    end if
-	  else if (rlon.gt.151.and.rlon.lt.154.) then	    
-	    landdata(i,j,1:13)=0.
-	    landdata(i,j,0)=1.	    
-	    oceandata(i,j)=1.
-	    soildata(i,j,0:8)=0.
-	    urbandata(i,j)=0.
-	    albvisdata(i,j,:)=0.08
-	    albnirdata(i,j,:)=0.08
-	    laidata(i,j,:)=0.
-	  end if
-	else if (rlat.lt.-36.5.and.rlat.gt.-44.) then
-	  if (rlon.gt.112..and.rlon.lt.154.) then
-	    landdata(i,j,1:13)=0.
-	    landdata(i,j,0)=1.	    
-	    oceandata(i,j)=1.
-	    soildata(i,j,0:8)=0.
-	    urbandata(i,j)=0.
-	    albvisdata(i,j,:)=0.08
-	    albnirdata(i,j,:)=0.08
-	    laidata(i,j,:)=0.	
-          end if
-	end if	
-	
-      end do
-    end do  
-  case(2)
-    write(6,*) "Apply CAI flat patch"
-    do i=1,sibdim(1)
-      do j=1,sibdim(2)
-        rlon=rlld(i,j,1)
-	rlat=rlld(i,j,2)
-	if (rlat.lt.0..and.rlat.gt.-56.) then
-	  if (rlon.gt.-86..and.rlon.lt.-34.) then
-	    if (oceandata(i,j).lt.0.5) then
-	    landdata(i,j,0:13)=0. ! south america
-	    landdata(i,j,4)=1. ! check
-	    oceandata(i,j)=0.
-	    soildata(i,j,0:8)=0.
-	    soildata(i,j,3)=1. ! check    
-	    urbandata(i,j)=0.
-	    albvisdata(i,j,:)=0.12 ! check
-	    albnirdata(i,j,:)=0.12 ! check
-	    laidata(i,j,:)=2.5 ! check
-	    end if
-	  end if
-	end if
-	
-	if (rlat.lt.0..and.rlat.gt.-35.) then
-	  if (rlon.gt.5..and.rlon.lt.52.) then
-	    if (oceandata(i,j).lt.0.5) then
-	    landdata(i,j,0:13)=0. ! africa
-	    landdata(i,j,4)=1. ! check
-	    oceandata(i,j)=0.
-	    soildata(i,j,0:8)=0.
-	    soildata(i,j,3)=1. ! check    
-	    urbandata(i,j)=0.
-	    albvisdata(i,j,:)=0.12 ! check
-	    albnirdata(i,j,:)=0.12 ! check
-	    laidata(i,j,:)=2.5 ! check
-	    end if
-	  end if
-	end if
-	
-	if (rlat.lt.-10..and.rlat.gt.-50.) then
-	  if (rlon.gt.112..and.rlon.lt.180.) then
-	    if (oceandata(i,j).lt.0.5) then
-	    landdata(i,j,0:13)=0. ! australia
-	    landdata(i,j,8)=1. ! check
-	    oceandata(i,j)=0.
-	    soildata(i,j,0:8)=0.
-	    soildata(i,j,1)=1. ! check    
-	    urbandata(i,j)=0.
-	    albvisdata(i,j,:)=0.12 ! check
-	    albnirdata(i,j,:)=0.12 ! check
-	    laidata(i,j,:)=0.5 ! check
-	    end if
-          end if
-	end if	
-	
-      end do
-    end do  
-  case DEFAULT
-end select
-
 
 if (siblsmask) then
   write(6,*) "Using SiB land/sea mask"
-  lsdata=landdata(:,:,0)
-  call cleantopo(tunit,fname(1),fname(10),lsdata,oceandata,sibdim,caipatch,rlld)
+  call cleantopo(tunit,fname(1),fname(10),lsdata,oceandata,sibdim)
 else
   write(6,*) "Using topography land/sea mask"
   call gettopols(tunit,fname(1),lsdata,sibdim)
@@ -458,14 +238,14 @@ end if
 urbandata=min(urbandata,(1.-lsdata))
 
 ! Clean-up soil, lai, veg, albedo and urban data
-Call cleandata(landdata,13,lsdata,rlld,sibdim)
+Call cleansib(landdata,lsdata,rlld,sibdim)
 Call cleanreal(soildata,8,lsdata,rlld,sibdim)
 Call cleanreal(laidata,mthrng-1,lsdata,rlld,sibdim)
 Call cleanreal(albvisdata,mthrng-1,lsdata,rlld,sibdim)
 Call cleanreal(albnirdata,mthrng-1,lsdata,rlld,sibdim)
 do i=1,sibdim(1)
   do j=1,sibdim(2)
-    if (lsdata(i,j).ge.0.5) then
+    if (lsdata(i,j)>=0.5) then
       albvisdata(i,j,:)=0.08 ! 0.07 in Masson (2003)
       albnirdata(i,j,:)=0.08 ! 0.20 in Masson (2003)
     end if
@@ -481,7 +261,7 @@ dimnum(3)=1 ! Turn off level
 dimnum(4)=mthrng ! Number of months in a year
 adate=0 ! Turn off date
 adate(2)=1 ! time units=months
-Call ncinitcc(ncidarr,'veg.nc',dimnum(1:3),dimid,adate)
+Call ncinitcc(ncidarr,fname(8),dimnum(1:3),dimid,adate)
 outputdesc=(/ 'soil', 'Soil classification', 'none' /)
 Call ncaddvargen(ncidarr,outputdesc,5,2,varid(2),1.,0.)
 outputdesc=(/ 'albvis', 'Albedo (VIS)', '' /)
@@ -498,11 +278,16 @@ outputdesc=(/ 'landtype', 'Land-use classification', 'none' /)
 Call ncaddvargen(ncidarr,outputdesc,5,2,varid(8),1.,0.)
 outputdesc=(/ 'urban', 'Urban fraction', 'none' /)
 Call ncaddvargen(ncidarr,outputdesc,5,2,varid(9),1.,0.)
+
+call ncatt(ncidarr,'lon0',lonlat(1))
+call ncatt(ncidarr,'lat0',lonlat(2))
+call ncatt(ncidarr,'schmidt',schmidt)
+
 Call ncenddef(ncidarr)
 alonlat(:,1)=(/ 1., real(sibdim(1)), 1. /)
 alonlat(:,2)=(/ 1., real(sibdim(2)), 1. /)
 alvl=1.
-if (mthrng.eq.12) then
+if (mthrng==12) then
   Do i=1,12
     atime(i)=Real(i) ! Define Months
   End do
@@ -513,77 +298,24 @@ Call nclonlatgen(ncidarr,dimid,alonlat,alvl,atime,dimnum)
 
 
 ! Write soil type
-Write(6,*) 'Write soil type file.'
+Write(6,*) 'Write soil type.'
 Call calsoilnear(landdata,soildata,lsdata,sibdim,idata)
-Write(formout,'(1h(,i3,2hi3,1h))') sibdim(1)
-Open(1,File=fname(2))
-Write(1,'(i3,i4,2f8.3,f6.3,f8.0," ",a39)') sibdim(1),sibdim(2),lonlat(1),lonlat(2),schmidt,ds,'soil'
-Write(1,formout) idata
-Close(1)
 dimcount=(/ sibdim(1), sibdim(2), 1, 1 /)
 Call ncwritedatgen(ncidarr,Real(idata),dimcount,varid(2))
 
 ! Write albedo file
-Write(6,*) 'Write albedo files.'
-Write(formout,'("(",i3,"f4.0)" )') sibdim(1)
-if (mthrng.eq.12) then
-  Do i=1,12
-    Write(monthout,'(I2.2)') i
-    filedesc=trim(fname(3))//'.'//trim(monthout)
-    Open(1,File=filedesc)
-    Write(1,'(i3,i4,2f8.3,f6.3,f8.0," ",a39)') sibdim(1),sibdim(2),lonlat(1),lonlat(2),schmidt,ds,'albedo'
-    Write(1,formout) albvisdata(:,:,i-1)*100.
-    Close(1)
-  End Do
-else
-  Open(1,File=fname(3))
-  Write(1,'(i3,i4,2f8.3,f6.3,f8.0," ",a39)') sibdim(1),sibdim(2),lonlat(1),lonlat(2),schmidt,ds,'albedo'
-  Write(1,formout) albvisdata(:,:,0)*100.
-  Close(1)
-end if
+Write(6,*) 'Write albedo.'
 dimcount=(/ sibdim(1), sibdim(2), mthrng, 1 /)
 Call ncwritedatgen(ncidarr,albvisdata,dimcount,varid(3))
-
-if (mthrng.eq.12) then
-  Do i=1,12
-    Write(monthout,'(I2.2)') i
-    filedesc=trim(fname(4))//'.'//trim(monthout)
-    Open(1,File=filedesc)
-    Write(1,'(i3,i4,2f8.3,f6.3,f8.0," ",a39)') sibdim(1),sibdim(2),lonlat(1),lonlat(2),schmidt,ds,'albnir'
-    Write(1,formout) albnirdata(:,:,i-1)*100.
-    Close(1)
-  End Do
-else
-  Open(1,File=fname(4))
-  Write(1,'(i3,i4,2f8.3,f6.3,f8.0," ",a39)') sibdim(1),sibdim(2),lonlat(1),lonlat(2),schmidt,ds,'albnir'
-  Write(1,formout) albnirdata(:,:,0)*100.
-  Close(1)
-end if
 dimcount=(/ sibdim(1), sibdim(2), mthrng, 1 /)
 Call ncwritedatgen(ncidarr,albnirdata,dimcount,varid(4))
 
 ! Write rsmin file
-Write(6,*) 'Write rsmin files.'
+Write(6,*) 'Write rsmin.'
 Call calrsmin(landdata,laidata,sibdim,mthrng,rdata)
 Where(rdata.GT.995.)
   rdata=995.
 End Where
-Write (formout,'("(",i3,"f5.0)" )') sibdim(1)
-if (mthrng.eq.12) then
-  Do i=1,12
-    Write(monthout,'(I2.2)') i
-    filedesc=trim(fname(5))//'.'//trim(monthout)
-    Open(1,File=filedesc)
-    Write(1,'(i3,i4,2f8.3,f6.3,f8.0," ",a39)') sibdim(1),sibdim(2),lonlat(1),lonlat(2),schmidt,ds,'rsmin'
-    Write(1,formout) rdata(:,:,i)
-    Close(1)
-  End Do
-else
-  Open(1,File=fname(5))
-  Write(1,'(i3,i4,2f8.3,f6.3,f8.0," ",a39)') sibdim(1),sibdim(2),lonlat(1),lonlat(2),schmidt,ds,'rsmin'
-  Write(1,formout) rdata(:,:,1)
-  Close(1)
-end if
 dimcount=(/ sibdim(1), sibdim(2), mthrng, 1 /)
 Call ncwritedatgen(ncidarr,rdata,dimcount,varid(5))
 
@@ -593,66 +325,18 @@ Call calrough(landdata,laidata,sibdim,mthrng,rdata,zmin)
 Where(rdata.LT.0.01)
   rdata=0.01
 End Where
-Write (formout,'("(",i3,"f6.0)" )') sibdim(1)
-if (mthrng.eq.12) then
-  Do i=1,12
-    Write(monthout,'(I2.2)') i
-    filedesc=trim(fname(6))//'.'//trim(monthout)
-    Open(1,File=filedesc)
-    Write(1,'(i3,i4,2f8.3,f6.3,f8.0," ",a39)') sibdim(1),sibdim(2),lonlat(1),lonlat(2),schmidt,ds,'rough'
-    Write(1,formout) rdata(:,:,i)*100.
-    Close(1)
-  End Do  
-else
-    Open(1,File=fname(6))
-    Write(1,'(i3,i4,2f8.3,f6.3,f8.0," ",a39)') sibdim(1),sibdim(2),lonlat(1),lonlat(2),schmidt,ds,'rough'
-    Write(1,formout) rdata(:,:,1)*100.
-    Close(1)
-end if
 dimcount=(/ sibdim(1), sibdim(2), mthrng, 1 /)
 Call ncwritedatgen(ncidarr,rdata,dimcount,varid(6))
 
 ! Write veg frac file
 !Write(6,*) 'Write vegetation fraction files.'
 !Call calgreen(laidata,sibdim,mthrng,rdata)
-!Write (formout,'("(",i3,"f5.0)" )') sibdim(1)
-!if (mthrng.eq.12) then
-!  Do i=1,12
-!    Write(monthout,'(I2.2)') i
-!    filedesc=trim(fname(7))//'.'//trim(monthout)
-!    Open(1,File=filedesc)
-!    Write(1,'(i3,i4,2f8.3,f6.3,f8.0," ",a39)') sibdim(1),sibdim(2),lonlat(1),lonlat(2),schmidt,ds,'vegfrac'
-!    Write(1,formout) rdata(:,:,i)*100.
-!    Close(1)
-!  End Do
-!else
-!  Open(1,File=fname(7))
-!  Write(1,'(i3,i4,2f8.3,f6.3,f8.0," ",a39)') sibdim(1),sibdim(2),lonlat(1),lonlat(2),schmidt,ds,'vegfrac'
-!  Write(1,formout) rdata(:,:,1)*100.
-!  Close(1)
-!end if
 !dimcount=(/ sibdim(1), sibdim(2), mthrng, 1 /)
 !Call ncwritedatgen(ncidarr,rdata,dimcount,varid(7))
 
 
 ! Write lai file
 Write(6,*) 'Write lai files.'
-Write (formout,'("(",i3,"f5.0)" )') sibdim(1)
-if (mthrng.eq.12) then
-  Do i=1,12
-    Write(monthout,'(I2.2)') i
-    filedesc=trim(fname(7))//'.'//trim(monthout)
-    Open(1,File=filedesc)
-    Write(1,'(i3,i4,2f8.3,f6.3,f8.0," ",a39)') sibdim(1),sibdim(2),lonlat(1),lonlat(2),schmidt,ds,'lai'
-    Write(1,formout) laidata(:,:,i-1)*100.
-    Close(1)
-  End Do
-else
-  Open(1,File=fname(7))
-  Write(1,'(i3,i4,2f8.3,f6.3,f8.0," ",a39)') sibdim(1),sibdim(2),lonlat(1),lonlat(2),schmidt,ds,'lai'
-  Write(1,formout) laidata(:,:,0)*100.
-  Close(1)
-end if
 dimcount=(/ sibdim(1), sibdim(2), mthrng, 1 /)
 Call ncwritedatgen(ncidarr,laidata,dimcount,varid(7))
 
@@ -660,30 +344,29 @@ Call ncwritedatgen(ncidarr,laidata,dimcount,varid(7))
 Write(6,*) 'Write land-use type'
 Do i=1,sibdim(1)
   Do j=1,sibdim(2)
-    if (lsdata(i,j).ge.0.5) then
+    if (lsdata(i,j)>=0.5) then
       idata(i,j)=0
     else
-      sibmax=Maxloc(landdata(i,j,1:13))
+      sibmax=Maxloc(landdata(i,j,1:41))
       idata(i,j)=sibmax(1)
     end if
   End do
 End do
-Write(formout,'(1h(,i3,2hi3,1h))') sibdim(1)
-Open(1,File=fname(8))
-Write(1,'(i3,i4,2f8.3,f6.3,f8.0," ",a39)') sibdim(1),sibdim(2),lonlat(1),lonlat(2),schmidt,ds,'sib'
-Write(1,formout) idata
-Close(1)
+where (idata>13)
+  idata=idata+101-13
+end where
+where (idata>0.and.idata<=13)
+  idata=idata+31
+end where
+where (idata>100)
+  idata=idata-100
+end where
 dimcount=(/ sibdim(1), sibdim(2), 1, 1 /)
 Call ncwritedatgen(ncidarr,Real(idata),dimcount,varid(8))
 
 ! Urban
 Write(6,*) 'Write urban fraction'
-urbanfrac=0.6
-Write(formout,'("(",i3,"f4.0)" )') sibdim(1)
-Open(1,File=fname(9))
-Write(1,'(i3,i4,2f8.3,f6.3,f8.0," ",a39)') sibdim(1),sibdim(2),lonlat(1),lonlat(2),schmidt,ds,'urban'
-Write(1,formout) urbandata(:,:)*urbanfrac*100.
-Close(1)
+urbanfrac=1.
 dimcount=(/ sibdim(1), sibdim(2), 1, 1 /)
 Call ncwritedatgen(ncidarr,urbandata*urbanfrac,dimcount,varid(9))
 
@@ -703,10 +386,10 @@ subroutine sibfix(landdata,rawdata,rlld,sibdim)
 implicit none
 
 integer, dimension(1:2), intent(in) :: sibdim
-real, dimension(1:sibdim(1),1:sibdim(2),0:50), intent(in) :: rawdata
+real, dimension(1:sibdim(1),1:sibdim(2),0:81), intent(in) :: rawdata
 real, dimension(sibdim(1),sibdim(2),1:2), intent(in) :: rlld
-real, dimension(1:sibdim(1),1:sibdim(2),0:13), intent(out) :: landdata
-real, dimension(1:sibdim(1),1:sibdim(2),0:22) :: landtemp
+real, dimension(1:sibdim(1),1:sibdim(2),0:42), intent(out) :: landdata
+real, dimension(1:sibdim(1),1:sibdim(2),0:42) :: landtemp
 logical, dimension(1:sibdim(1),1:sibdim(2)) :: sermsk
 integer i,ilon,ilat,pxy(2)
 real nsum,wsum
@@ -715,25 +398,86 @@ landtemp(:,:,0:22)=rawdata(:,:,0:22)
 do i=31,50
   landtemp(:,:,i-30)=landtemp(:,:,i-30)+rawdata(:,:,i)
 end do
-landdata(:,:,1:12)=landtemp(:,:,1:12)
-landdata(:,:,0)=landtemp(:,:,19)+landtemp(:,:,22) ! redefine water
-landdata(:,:,13)=landtemp(:,:,20) ! redefine ice
-landtemp(:,:,0:13)=landdata(:,:,0:13)
+landdata(:,:,1:12) =landtemp(:,:,1:12)                 ! SIB's
+landdata(:,:,0)    =landtemp(:,:,19)                   ! redefine ocean
+landdata(:,:,13)   =landtemp(:,:,20)                   ! redefine ice
+landdata(:,:,14:41)=rawdata(:,:,51:78)                 ! Dean's
+landdata(:,:,42)   =rawdata(:,:,79)+rawdata(:,:,80)    ! redefine lake
 
-sermsk=sum(landdata(:,:,1:13),3).gt.0.
+landtemp(:,:,0:42) =landdata(:,:,0:42)
+sermsk=sum(landdata(:,:,1:41),3)>0.
 if (.not.any(sermsk)) return
 
-do ilon=1,sibdim(1)
-  do ilat=1,sibdim(2)
-    wsum=landdata(ilon,ilat,0) ! water
-    if (wsum.lt.1.) then
-      nsum=sum(landdata(ilon,ilat,1:13)) ! land
-      if (nsum.eq.0.) then
-        call findnear(pxy,ilon,ilat,sermsk,rlld,sibdim)
-        landdata(ilon,ilat,1:13)=landtemp(pxy(1),pxy(2),1:13)  
-        nsum=sum(landdata(ilon,ilat,1:13))
+call fill_cc_a(landtemp(:,:,1:41),sibdim(1),41,sermsk)
+
+do ilat=1,sibdim(2)
+  do ilon=1,sibdim(1)
+    wsum=landdata(ilon,ilat,0)+landdata(ilon,ilat,42) ! water
+    if (wsum<1.) then
+      if (.not.sermsk(ilon,ilat)) then
+        landdata(ilon,ilat,1:41)=landtemp(ilon,ilat,1:41)
       end if
-      landdata(ilon,ilat,1:13)=landdata(ilon,ilat,1:13)*(1.-wsum)/nsum
+      nsum=sum(landdata(ilon,ilat,1:41)) ! land
+      landdata(ilon,ilat,1:41)=landdata(ilon,ilat,1:41)*max(1.-wsum,0.)/nsum
+    end if
+  end do
+  if ( mod(ilat,100)==0 .or. ilat==sibdim(2) ) then
+    write(6,*) "Searching ",ilat,"/",sibdim(2)
+  end if
+end do
+
+return
+end
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+! clean land
+
+subroutine cleansib(dataout,lsdata,rlld,sibdim)
+
+implicit none
+
+integer, dimension(1:2), intent(in) :: sibdim
+real, dimension(1:sibdim(1),1:sibdim(2),0:42), intent(inout) :: dataout
+real, dimension(1:sibdim(1),1:sibdim(2)), intent(in) :: lsdata
+real, dimension(1:sibdim(1),1:sibdim(2),1:2), intent(in) :: rlld
+real, dimension(1:sibdim(1),1:sibdim(2),0:42) :: datain
+logical, dimension(1:sibdim(1),1:sibdim(2)) :: sermsk,ocnmsk
+integer ilon,ilat,pxy(2)
+real nsum,wsum
+
+datain=dataout
+sermsk=sum(datain(:,:,1:41),3).gt.0.
+ocnmsk=(datain(:,:,0)+datain(:,:,42))>0.
+if (.not.any(sermsk)) then
+  dataout(:,:,0)=1.
+  dataout(:,:,1:)=0.
+  return
+end if
+
+do ilat=1,sibdim(2)
+  do ilon=1,sibdim(1)
+    if (lsdata(ilon,ilat)<0.5) then
+      if (.not.sermsk(ilon,ilat)) then
+        call findnear(pxy,ilon,ilat,sermsk,rlld,sibdim)
+        dataout(ilon,ilat,1:41)=datain(pxy(1),pxy(2),1:41)
+      end if
+      nsum=sum(dataout(ilon,ilat,1:41))
+      dataout(ilon,ilat,1:41)=dataout(ilon,ilat,1:41)*(1.-lsdata(ilon,ilat))/nsum
+    else
+      dataout(ilon,ilat,1:41)=0.
+    end if
+    if (lsdata(ilon,ilat)>=0.5) then
+      if (.not.ocnmsk(ilon,ilat)) then
+        call findnear(pxy,ilon,ilat,ocnmsk,rlld,sibdim)
+        dataout(ilon,ilat,0)=datain(pxy(1),pxy(2),0)
+        dataout(ilon,ilat,42)=datain(pxy(1),pxy(2),42)
+      end if
+      wsum=dataout(ilon,ilat,0)+dataout(ilon,ilat,42)
+      dataout(ilon,ilat,0)=dataout(ilon,ilat,0)*lsdata(ilon,ilat)/wsum
+      dataout(ilon,ilat,42)=dataout(ilon,ilat,42)*lsdata(ilon,ilat)/wsum
+    else
+      dataout(ilon,ilat,0)=0.
+      dataout(ilon,ilat,42)=0.
     end if
   end do
 end do
@@ -741,8 +485,9 @@ end do
 return
 end
 
+    
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-! clean land and soil data
+! clean soil data
 !
 
 subroutine cleandata(dataout,num,lsdata,rlld,sibdim)
@@ -826,94 +571,55 @@ end
 ! data file.
 !
 
-Subroutine cleantopo(topounit,toponame,topoout,lsmskin,oceanin,sibdim,caipatch,rlld)
+Subroutine cleantopo(topounit,toponame,topoout,lsmskin,oceanin,sibdim)
 
 Implicit None
 
-Integer, intent(in) :: topounit,caipatch
-Integer, dimension(1:2), intent(in) :: sibdim
-Integer ilout,ierr,ia,ib,i,j
+include 'netcdf.inc'
+
+Integer, intent(in) :: topounit
+Integer, dimension(2), intent(in) :: sibdim
+integer, dimension(3) :: spos,npos
+integer, dimension(3) :: dimid
+Integer ilout,ierr,ia,ib,i
+integer ncid,lnctopo,varid
 Character(len=*), intent(in) :: toponame,topoout
 Character*80 formout
 Character*47 dc
-Real, dimension(1:sibdim(1),1:sibdim(2)), intent(in) :: lsmskin,oceanin
-Real, dimension(1:sibdim(1),1:sibdim(2),1:2), intent(in) :: rlld
-Real, dimension(1:sibdim(1),1:sibdim(2)) :: topo,sd,lsmsk
-Real ra,rb,rc,rd,rlon,rlat
+Real, dimension(sibdim(1),sibdim(2)), intent(in) :: lsmskin,oceanin
+Real, dimension(sibdim(1),sibdim(2)) :: topo,sd,lsmsk
+real, dimension(sibdim(2)) :: dum
+Real ra,rb,rc,rd
 ilout=Min(sibdim(1),30) ! To be compatiable with terread
 
 Write(6,*) "Adjust topography data for consistancy with land-sea mask"
 
-Open(topounit,FILE=toponame,FORM='formatted',STATUS='old',IOSTAT=ierr)
-Read(topounit,*,IOSTAT=ierr) ia,ib,ra,rb,rc,rd,dc
-Read(topounit,*,IOSTAT=ierr) topo ! Topography data
-Read(topounit,*,IOSTAT=ierr) lsmsk ! land/sea mask (to be replaced)
-Read(topounit,*,IOSTAT=ierr) sd ! Topography standard deviation
-Close(topounit)
-
-! PATCH
-select case(caipatch)
-  case(1)
-    write(6,*) "Apply CAI block patch"
-    do i=1,sibdim(1)
-      do j=1,sibdim(2)
-        rlon=rlld(i,j,1)
-	rlat=rlld(i,j,2)
-	if (rlat.lt.0..and.rlat.gt.-56.) then
-          if (rlon.ge.-76..and.rlon.le.-45.) then
-	    topo(i,j)=0. ! south america
-	    sd(i,j)=0.
-	  end if
-	end if
-	
-	if (rlat.lt.0..and.rlat.gt.-35.) then
-          if (rlon.ge.10..and.rlon.le.40.) then
-	    topo(i,j)=0. ! africa
-	    sd(i,j)=0.
-	  end if
-	end if
-	
-	if (rlat.le.-12..and.rlat.ge.-36.5) then
-          if (rlon.ge.115..and.rlon.le.151.) then
-	    if (rlat.lt.-32..and.rlon.gt.124..and.rlon.lt.138.) then
-	    else
-	    topo(i,j)=0. ! australia
-	    sd(i,j)=0.
-	    end if
-	  end if
-	end if
-      end do
-    end do
-  case(2)
-    write(6,*) "Apply CAI flat patch"
-    do i=1,sibdim(1)
-      do j=1,sibdim(2)
-        rlon=rlld(i,j,1)
-	rlat=rlld(i,j,2)
-	if (rlat.lt.0..and.rlat.gt.-56.) then
-          if (rlon.ge.-86..and.rlon.le.-34.) then
-	    topo(i,j)=0. ! south america
-	    sd(i,j)=0.
-	  end if
-	end if
-	
-	if (rlat.lt.0..and.rlat.gt.-35.) then
-          if (rlon.ge.5..and.rlon.le.52.) then
-	    topo(i,j)=0. ! africa
-	    sd(i,j)=0.
-	  end if
-	end if
-	
-	if (rlat.le.-10..and.rlat.ge.-50.) then
-          if (rlon.ge.112..and.rlon.le.180.) then
-	    topo(i,j)=0. ! australia
-	    sd(i,j)=0.
-	  end if
-	end if
-      end do
-    end do
-  case DEFAULT
-end select
+ierr=nf_open(toponame,nf_nowrite,ncid)
+if (ierr==0) then
+  lnctopo=1
+  spos=1
+  npos(1)=sibdim(1)
+  npos(2)=sibdim(2)
+  npos(3)=1
+  ierr=nf_get_att_real(ncid,nf_global,'lon0',ra)
+  ierr=nf_get_att_real(ncid,nf_global,'lat0',rb)
+  ierr=nf_get_att_real(ncid,nf_global,'schmidt',rc)
+  ierr=nf_inq_varid(ncid,'zs',varid)
+  ierr=nf_get_vara_real(ncid,varid,spos,npos,topo)
+  ierr=nf_inq_varid(ncid,'lsm',varid)
+  ierr=nf_get_vara_real(ncid,varid,spos,npos,lsmsk)
+  ierr=nf_inq_varid(ncid,'tsd',varid)
+  ierr=nf_get_vara_real(ncid,varid,spos,npos,sd)
+  ierr=nf_close(ncid)
+else
+  lnctopo=0
+  Open(topounit,FILE=toponame,FORM='formatted',STATUS='old',IOSTAT=ierr)
+  Read(topounit,*,IOSTAT=ierr) ia,ib,ra,rb,rc,rd,dc
+  Read(topounit,*,IOSTAT=ierr) topo ! Topography data
+  Read(topounit,*,IOSTAT=ierr) lsmsk ! land/sea mask (to be replaced)
+  Read(topounit,*,IOSTAT=ierr) sd ! Topography standard deviation
+  Close(topounit)
+end if
 
 If (ierr.NE.0) then
   Write(6,*) "ERROR: Cannot read file ",trim(toponame)
@@ -921,25 +627,64 @@ If (ierr.NE.0) then
 End if
 
 lsmsk=Real(1-nint(lsmskin))
-where (nint(oceanin)==1.and.nint(lsmskin)==1)
+where ((nint(oceanin)==1).and.(nint(lsmskin)==1))
   topo(:,:)=0.
   sd(:,:)=0.
 end where
 
-Open(topounit,FILE=topoout,FORM='formatted',STATUS='replace',IOSTAT=ierr)
-Write(topounit,'(i3,i4,2f8.3,f6.3,f8.0," ",a39)',IOSTAT=ierr) ia,ib,ra,rb,rc,rd,dc
-Write(formout,'("(",i3,"f7.0)")',IOSTAT=ierr) ilout
-Write(topounit,formout,IOSTAT=ierr) topo ! Topography data
-Write(formout,'("(",i3,"f4.1)")',IOSTAT=ierr) ilout
-Write(topounit,formout,IOSTAT=ierr) lsmsk ! land/sea mask
-Write(formout,'("(",i3,"f6.0)")',IOSTAT=ierr) ilout
-Write(topounit,formout,IOSTAT=ierr) sd ! Topography standard deviation
-Close(topounit)
+if (lnctopo==1) then
+  ierr=nf_create(topoout,nf_clobber,ncid)
+  if (ierr/=0) then
+    write(6,*) "ERROR creating output topography file ",ierr
+    stop
+  end if
+  ierr=nf_def_dim(ncid,'longitude',sibdim(1),dimid(1))
+  ierr=nf_def_dim(ncid,'latitude',sibdim(2),dimid(2))
+  ierr=nf_def_dim(ncid,'time',nf_unlimited,dimid(3))
+  ierr=nf_def_var(ncid,'longitude',nf_float,1,dimid(1),varid)
+  ierr=nf_def_var(ncid,'latitude',nf_float,1,dimid(2),varid)
+  ierr=nf_def_var(ncid,'time',nf_float,1,dimid(3),varid)
+  ierr=nf_def_var(ncid,'zs',nf_float,3,dimid(1:3),varid)
+  ierr=nf_def_var(ncid,'lsm',nf_float,3,dimid(1:3),varid)
+  ierr=nf_def_var(ncid,'tsd',nf_float,3,dimid(1:3),varid)
+  ierr=nf_put_att_real(ncid,nf_global,'lon0',nf_real,1,ra)
+  ierr=nf_put_att_real(ncid,nf_global,'lat0',nf_real,1,rb)
+  ierr=nf_put_att_real(ncid,nf_global,'schmidt',nf_real,1,rc)
+  ierr=nf_enddef(ncid)
+  do i=1,sibdim(2)
+    dum(i)=real(i)
+  end do
+  ierr=nf_inq_varid(ncid,'longitude',varid)
+  ierr=nf_put_vara_real(ncid,varid,spos(1),npos(1),dum)
+  ierr=nf_inq_varid(ncid,'latitude',varid)
+  ierr=nf_put_vara_real(ncid,varid,spos(2),npos(2),dum)
+  ierr=nf_inq_varid(ncid,'time',varid)
+  dum(1)=0.
+  ierr=nf_put_vara_real(ncid,varid,spos(3),npos(3),dum(1))
+  ierr=nf_inq_varid(ncid,'zs',varid)
+  ierr=nf_put_vara_real(ncid,varid,spos,npos,topo)
+  ierr=nf_inq_varid(ncid,'lsm',varid)
+  ierr=nf_put_vara_real(ncid,varid,spos,npos,lsmsk)
+  ierr=nf_inq_varid(ncid,'tsd',varid)
+  ierr=nf_put_vara_real(ncid,varid,spos,npos,sd)
+  ierr=nf_close(ncid)
+else
+  Open(topounit,FILE=topoout,FORM='formatted',STATUS='replace',IOSTAT=ierr)
+  Write(topounit,'(i4,i6,2f10.3,f6.3,f10.0," ",a39)',IOSTAT=ierr) ia,ib,ra,rb,rc,rd,dc
+  Write(formout,'("(",i3,"f7.0)")',IOSTAT=ierr) ilout
+  Write(topounit,formout,IOSTAT=ierr) topo ! Topography data
+  Write(formout,'("(",i3,"f4.1)")',IOSTAT=ierr) ilout
+  Write(topounit,formout,IOSTAT=ierr) lsmsk ! land/sea mask
+  Write(formout,'("(",i3,"f6.0)")',IOSTAT=ierr) ilout
+  Write(topounit,formout,IOSTAT=ierr) sd ! Topography standard deviation
+  Close(topounit)
+end if
 
 If (ierr.NE.0) then
-  Write(6,*) "ERROR: Cannot write file ",trim(toponame)
+  Write(6,*) "ERROR: Cannot write file ",trim(topoout)
   Stop
 End if
 
 Return
 End
+

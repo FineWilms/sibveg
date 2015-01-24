@@ -127,24 +127,24 @@ If (fastsib) then
             Allocate(coverout(lldim(1),lldim(2),0:num))
 	  
             Select Case(datatype)
-                Case('land')
+	          Case('land')
                 Call sibread(latlon,nscale,lldim,coverout)
               Case('soil')
-                Call kmconvert(nscale,nscale_x,lldim,lldim_x,4)
+	            Call kmconvert(nscale,nscale_x,lldim,lldim_x,4)
                 Call soilread(latlon,nscale_x,lldim_x,coverout)
               Case('lai')
-                Call kmconvert(nscale,nscale_x,lldim,lldim_x,4)
-                if (num.eq.11) then
-                  do imth=1,12
+	            Call kmconvert(nscale,nscale_x,lldim,lldim_x,4)
+	            if (num.eq.11) then
+	              do imth=1,12
                     Call lairead(latlon,nscale_x,lldim_x,imth,coverout(:,:,imth-1))
                   end do
                 else
                   Call lairead(latlon,nscale_x,lldim_x,month,coverout(:,:,0))
                 end if
               Case('albvis','albnir')
-                Call kmconvert(nscale,nscale_x,lldim,lldim_x,6)
-                if (num.eq.11) then
-                  do imth=1,12
+	            Call kmconvert(nscale,nscale_x,lldim,lldim_x,6)
+	            if (num.eq.11) then
+	              do imth=1,12
                     Call albedoread(latlon,nscale_x,lldim_x,imth,coverout(:,:,imth-1),datatype)
                   end do
                 else
@@ -157,16 +157,16 @@ If (fastsib) then
 
             Write(6,*) 'Start bin'
             Do i=1,lldim(1)
-              aglon=callon(latlon(1),i,nscale)	    
               Do j=1,lldim(2)
+                aglon=callon(latlon(1),i,nscale)
                 aglat=callat(latlon(2),j,nscale)
                 Call lltoijmod(aglon,aglat,alci,alcj,nface)
                 lci = nint(alci)
                 lcj = nint(alcj)
                 lcj = lcj+nface*sibdim(1)
                 If (grid(lci,lcj).GE.real(minscale)) then
-                  If (sum(coverout(i,j,:))<=0.01) then
-                    If (countn(lci,lcj).EQ.0) Then
+                  If (sum(coverout(i,j,:)).eq.0.) then
+	                If (countn(lci,lcj).EQ.0) Then
                       dataout(lci,lcj,:)=-1. ! Missing value?
                       countn(lci,lcj)=1
                     End if
@@ -318,22 +318,23 @@ If (subsec.NE.0) then
               i=int(serlon)
               j=int(serlat)
 
-              If ((i.GE.1).AND.(i.LE.lldim(1)).AND.(j.GE.1).AND.(j.LE.lldim(2))) Then
+              If ((i.GE.1).AND.(i.LT.lldim(1)).AND.(j.GE.1).AND.(j.LT.lldim(2))) Then
 	      
                 ni=i+1 ! 4 point interpolation
                 nj=j+1
 	      
                 serlon=serlon-real(i)
                 serlat=serlat-real(j)
-		
-		if (any(coverout(i,j,:)>0.)) then
-		  dataout(lci,lcj,:)=coverout(i,j,:)
-		  countn(lci,lcj)=1
-		else
-		  dataout(lci,lcj,:)=-1.
-		  countn(lci,lcj)=1
-		end if
 	
+                If (datatype.eq.'land') then		
+                  covertemp(1:2,1:2,:)=coverout(i:ni,j:nj,:)
+                else
+                  Call realfill(covertemp,coverout,lldim,i,ni,j,nj,num)
+                End if	    
+                Do k=0,num
+                  dataout(lci,lcj,k)=ipol(covertemp(:,:,k),serlon,serlat)
+                End Do
+                countn(lci,lcj)=1
               End If
                 
             End If
@@ -405,17 +406,30 @@ Implicit None
 Integer, intent(in) :: nscale
 Real, dimension(1:2), intent(in) :: latlon
 Integer, dimension(1:2), intent(in) :: lldim
-Real, dimension(lldim(1),lldim(2),0:50), intent(out) :: coverout
+Real, dimension(lldim(1),lldim(2),0:81), intent(out) :: coverout
 Integer*1, dimension(1:43200,1:nscale) :: databuffer
 Integer*1, dimension(1:43200) :: datatemp
 Integer, dimension(1:2,1:2) :: jin,jout
 Integer ilat,ilon,jlat,recpos
 Integer, dimension(1:2) :: llint
+integer, dimension(860,700) :: idean
+integer tix,tiy,jj,ii
+integer ni1,nj1,ni2,nj2,ni3,nj3,ni4,nj4
 
-! Must be compiled using 4 byte record lengths
-Open(10,FILE='gsib2u.img',ACCESS='DIRECT',FORM='UNFORMATTED',RECL=10800)
+open(11,file='dean31_int',form='formatted',status='old')
+read(11,*) ni1,nj1
+read(11,*) ni2,nj2
+read(11,*) ni3,nj3
+read(11,*) ni4,nj4
+do jj=1,700
+  read(11,*) (idean(ii,jj),ii=1,860)
+end do
+close(11)
 
-! To speed-up the code, 43200x(nscale) blocks of the sib file are read
+! Must be compiled using 1 byte record lengths
+Open(10,FILE='gsib2u.img',ACCESS='DIRECT',FORM='UNFORMATTED',RECL=43200)
+
+! To speed-up the code, 43200x(nscale) blocks of the sib file are read one row
 ! at a time.  The data is then averaged in memory.  This system speeds-up the
 ! code considerably.  However, there are limitations as to the size of data
 ! that can be stored in memory.
@@ -424,7 +438,7 @@ Call solvejshift(latlon(1),jin,jout,120)
 
 Do ilat=1,lldim(2)
 
-  if ((mod(ilat,10).eq.0).or.(ilat.eq.lldim(2))) then
+  if ((mod(ilat,10)==0).or.(ilat==lldim(2))) then
     Write(6,*) 'USGS - ',ilat,'/',lldim(2)
   end if
   
@@ -433,6 +447,18 @@ Do ilat=1,lldim(2)
   Do jlat=1,nscale
     recpos=llint(2)+jlat
     Read(10,REC=recpos) datatemp
+    ! Dean G's data
+    tiy=nint((45.+90.-(real(llint(2)+jlat)-0.5)/120.)/0.05-0.5)
+    if (tiy>=1.and.tiy<=700) then
+      do ilon=1,43200
+        tix=nint(((real(ilon)-0.5)/120.-180.-112.)/0.05+0.5)
+        if (tix>=1.and.tix<=860) then
+          datatemp(ilon)=idean(tix,tiy)+50
+          if (datatemp(ilon)==50) datatemp(ilon)=19 ! water
+        end if
+      end do
+    end if
+    
     ! Shift lon to zero
     databuffer(jin(1,1):jin(1,2),jlat)=datatemp(jout(1,1):jout(1,2))
     databuffer(jin(2,1):jin(2,2),jlat)=datatemp(jout(2,1):jout(2,2))
@@ -440,7 +466,7 @@ Do ilat=1,lldim(2)
   
   Do ilon=1,lldim(1)
     llint(1)=(ilon-1)*nscale
-    Call dataconvert(databuffer(llint(1)+1:llint(1)+nscale,1:nscale),coverout(ilon,ilat,:),nscale,50)
+    Call dataconvert(databuffer(llint(1)+1:llint(1)+nscale,1:nscale),coverout(ilon,ilat,:),nscale,81)
   End Do
 End Do
 
@@ -471,8 +497,8 @@ Integer, dimension(1:2) :: llint_4
 real nsum
 integer, dimension(0:13), parameter :: masmap=(/ 0, 1, 1, 4, 2, 4, 7, 2, 2, 5, 6, 3, 8, 9 /)
 
-! Must be compiled using 4 byte record lengths
-Open(20,FILE='usda4.img',ACCESS='DIRECT',FORM='UNFORMATTED',RECL=2700)
+! Must be compiled using 1 byte record lengths
+Open(20,FILE='usda4.img',ACCESS='DIRECT',FORM='UNFORMATTED',RECL=10800)
 
 ! To speed-up the code, 43200x(nscale) blocks of the sib file are read
 ! at a time.  The data is then averaged in memory.  This system speeds-up the
@@ -543,8 +569,8 @@ Call solvejshift(latlon(1),jin,jout,30)
 write(fname,'("slai",I2.2,".img")') imth
 write(6,*) 'Reading ',trim(fname)
 
-! Must be compiled using 4 byte record lengths
-Open(30,FILE=fname,ACCESS='DIRECT',FORM='UNFORMATTED',RECL=2700)
+! Must be compiled using 1 byte record lengths
+Open(30,FILE=fname,ACCESS='DIRECT',FORM='UNFORMATTED',RECL=10800)
 
 ! To speed-up the code, 43200x(nscale) blocks of the sib file are read
 ! at a time.  The data is then averaged in memory.  This system speeds-up the
@@ -625,8 +651,8 @@ select case(datatype)
 end select
 write(6,*) 'Reading ',trim(fname)
 
-! Must be compiled using 4 byte record lengths
-Open(40,FILE=fname,ACCESS='DIRECT',FORM='UNFORMATTED',RECL=1800)
+! Must be compiled using 1 byte record lengths
+Open(40,FILE=fname,ACCESS='DIRECT',FORM='UNFORMATTED',RECL=7200)
 
 ! To speed-up the code, 43200x(nscale) blocks of the sib file are read
 ! at a time.  The data is then averaged in memory.  This system speeds-up the
@@ -684,20 +710,33 @@ Use ccinterp
 Implicit None
 
 Integer, dimension(2), intent(in) :: sibdim
-Real, dimension(1:sibdim(1),1:sibdim(2),0:50), intent(out) :: coverout
+Real, dimension(1:sibdim(1),1:sibdim(2),0:81), intent(out) :: coverout
 Real aglon,aglat,alci,alcj
 Real callon,callat
 Integer, dimension(1:sibdim(1),1:sibdim(2)), intent(out) :: countn
+integer, dimension(860,700) :: idean
 Integer*1, dimension(1:43200) :: databuffer
 Integer ilat,ilon,lci,lcj,nface,cpos
+integer ii,jj,tix,tiy
+integer ni1,nj1,ni2,nj2,ni3,nj3,ni4,nj4
 
 coverout=0
 countn=0
 
 Write(6,*) "Read USGS data (stream)"
 
-! Must be compiled using 4 byte rsibrd lengths
-Open(10,FILE='gsib2u.img',ACCESS='DIRECT',FORM='UNFORMATTED',RECL=10800)
+open(11,file='dean31_int',form='formatted',status='old')
+read(11,*) ni1,nj1
+read(11,*) ni2,nj2
+read(11,*) ni3,nj3
+read(11,*) ni4,nj4
+do jj=1,700
+  read(11,*) (idean(ii,jj),ii=1,860)
+end do
+close(11)
+
+! Must be compiled using 1 byte rsibrd lengths
+Open(10,FILE='gsib2u.img',ACCESS='DIRECT',FORM='UNFORMATTED',RECL=43200)
 
 Do ilat=1,21600
 
@@ -710,20 +749,38 @@ Do ilat=1,21600
   aglat=callat(90.,ilat,1)
   
   Do ilon=1,43200
-    
     aglon=callon(-180.,ilon,1)
     
+    if (.not.(aglat>-45..and.aglat<-10..and.aglon>112..and.aglon<154.5)) then
+      Call lltoijmod(aglon,aglat,alci,alcj,nface)
+      lci = nint(alci)
+      lcj = nint(alcj)
+      lcj = lcj+nface*sibdim(1)
+    
+      cpos=databuffer(ilon)
+      coverout(lci,lcj,cpos)=coverout(lci,lcj,cpos)+1.
+      countn(lci,lcj)=countn(lci,lcj)+1
+    end if
+    
+  End Do
+End Do
+
+do tiy=1,700
+  aglat=-44.975+real(tiy-1)*0.05
+  do tix=1,850
+    aglon=112.25+real(tix-1)*0.05
+
     Call lltoijmod(aglon,aglat,alci,alcj,nface)
     lci = nint(alci)
     lcj = nint(alcj)
     lcj = lcj+nface*sibdim(1)
     
-    cpos=databuffer(ilon)
+    cpos=databuffer(ilon)+50
+    if (cpos==50) cpos=19
     coverout(lci,lcj,cpos)=coverout(lci,lcj,cpos)+1.
     countn(lci,lcj)=countn(lci,lcj)+1
-    
-  End Do
-End Do
+  end do
+end do
 
 Close(10)
 
@@ -757,8 +814,8 @@ countn=0
 
 Write(6,*) "Read HWSD data (stream)"
 
-! Must be compiled using 4 byte rsibrd lengths
-Open(20,FILE='usda4.img',ACCESS='DIRECT',FORM='UNFORMATTED',RECL=2700)
+! Must be compiled using 1 byte rsibrd lengths
+Open(20,FILE='usda4.img',ACCESS='DIRECT',FORM='UNFORMATTED',RECL=10800)
 
 Do ilat=1,5400
 
@@ -780,7 +837,7 @@ Do ilat=1,5400
     lcj = lcj+nface*sibdim(1)
     
     cpos=databuffer(ilon)
-    if ((cpos.ge.1).and.(cpos.le.129)) then
+    if ((cpos.ge.1).and.(cpos.le.13)) then
       If (coverout(lci,lcj,0).LT.0.) then
         coverout(lci,lcj,:)=0.
         countn(lci,lcj)=0
@@ -832,8 +889,8 @@ countn=0
 write(fname,'("slai",I2.2,".img")') imth
 write(6,*) 'Reading (stream) ',trim(fname)
 
-! Must be compiled using 4 byte record lengths
-Open(30,FILE=fname,ACCESS='DIRECT',FORM='UNFORMATTED',RECL=2700)
+! Must be compiled using 1 byte record lengths
+Open(30,FILE=fname,ACCESS='DIRECT',FORM='UNFORMATTED',RECL=10800)
 
 Do ilat=1,5400
   aglat=callat(90.,ilat,1)
@@ -917,8 +974,8 @@ select case(datatype)
 end select
 write(6,*) 'Reading (stream) ',trim(fname)
 
-! Must be compiled using 4 byte record lengths
-Open(40,FILE=fname,ACCESS='DIRECT',FORM='UNFORMATTED',RECL=1800)
+! Must be compiled using 1 byte record lengths
+Open(40,FILE=fname,ACCESS='DIRECT',FORM='UNFORMATTED',RECL=7200)
 
 Do ilat=1,3600
   aglat=callat(90.,ilat,1)
@@ -1440,7 +1497,7 @@ End
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 ! Calculate rsmin
-! Better to calculate rsmin for each biome and combine in paralle.
+! Better to calculate rsmin for each biome and combine in parallel.
 ! However, since the LAI is already averaged, we simply estimate
 ! rsmin for the averaged biome.
 !
@@ -1451,22 +1508,25 @@ implicit None
 
 integer, intent(in) :: mthrng
 integer, dimension(1:2), intent(in) :: sibdim
-real, dimension(1:sibdim(1),1:sibdim(2),0:13), intent(in) :: landdata
+real, dimension(1:sibdim(1),1:sibdim(2),0:42), intent(in) :: landdata
 real, dimension(1:sibdim(1),1:sibdim(2),0:mthrng-1), intent(in) :: laidata
 real, dimension(1:sibdim(1),1:sibdim(2),1:mthrng), intent(out) :: rdata
-real, dimension(1:13) :: rsunc
+real, dimension(1:42) :: rsunc
 integer ilon,ilat,i
 real nsum,tmprs
 
-rsunc(:)=(/ 350.,300.,300.,300.,300., 230.,230.,230., 150., 230., 995., 150.,9900. /) ! CASA
+rsunc(1:13)=(/ 350.,300.,300.,300.,300., 230.,230.,230., 150., 230., 995., 150.,9900. /) ! CASA
+rsunc(14:42)=(/ 370., 330., 260., 200., 150., 130., 200., 150., 110., 160., &
+                100., 120.,  90.,  90.,  80.,  90., 150.,  80., 100.,  80., &
+                 80.,  80.,  80.,  60.,  60., 120.,  80., 180., 995.  /)                  
 
 rdata=0.
 
 do ilat=1,sibdim(2)
   do ilon=1,sibdim(1)
-    nsum=sum(landdata(ilon,ilat,1:13))
-    if (nsum.gt.0.) then
-      tmprs=dot_product(landdata(ilon,ilat,1:13),1./rsunc(:))/nsum
+    nsum=sum(landdata(ilon,ilat,1:41))
+    if (nsum>0.) then
+      tmprs=dot_product(landdata(ilon,ilat,1:41),1./rsunc(1:41))/nsum
       do i=1,mthrng
         rdata(ilon,ilat,i)=1./(tmprs*laidata(ilon,ilat,i-1))
       end do
@@ -1474,7 +1534,7 @@ do ilat=1,sibdim(2)
   end do
 end do
 
-where (rdata.le.0.)
+where (rdata<=0.)
   rdata=-1.
 end where
 
@@ -1496,10 +1556,10 @@ Implicit None
 integer, intent(in) :: mthrng
 Integer, dimension(1:2), intent(in) :: sibdim
 real, intent(in) :: zmin
-Real, dimension(1:sibdim(1),1:sibdim(2),0:13), intent(in) :: landdata
+Real, dimension(1:sibdim(1),1:sibdim(2),0:42), intent(in) :: landdata
 real, dimension(1:sibdim(1),1:sibdim(2),0:mthrng-1), intent(in) :: laidata
 Real, dimension(1:sibdim(1),1:sibdim(2),1:mthrng), intent(out) :: rdata
-real, dimension(1:13) :: xhc
+real, dimension(1:42) :: xhc
 Integer ilon,ilat,i
 real nsum,tmplai,tmphc
 real psih,rl,usuh,xx,dh,z0,z0h
@@ -1513,16 +1573,19 @@ real, parameter :: vonk  = 0.4          ! von karman constant
 real, parameter :: zomin = 0.02
 
 psih=alog(ccw)-1.0+1.0/ccw  ! i.e. .19315
-xhc=(/ 32.,20.,20.,17.,17., 1., 1., 1., 0.5, 0.6, 0.01, 1.,0.01 /) ! CASA
-!xhc=(/ 17.,35.,15.5,20.,19.3,0.6,0.6,7.,8.,0.6,0.5,0.6,6.,0.6,0.01,0.2,0.01 /) ! IGBP
+xhc(1:13)=(/ 32.,20.,20.,17.,17., 1., 1., 1., 0.5, 0.6, 0.01, 1.,0.01 /) ! CASA
+!xhc(1:13)=(/ 17.,35.,15.5,20.,19.3,0.6,0.6,7.,8.,0.6,0.5,0.6,6.,0.6,0.01,0.2,0.01 /) ! IGBP
+xhc(14:42)=(/ 30.00, 28.00, 25.00, 17.00, 12.00, 10.00,  9.00,  7.00,  5.50,  3.00, &
+               2.50,  2.00,  1.00,  0.60,  0.50,  0.50,  0.45,  0.75,  0.60,  0.45, &
+               0.40,  0.60,  0.06,  0.24,  0.25,  0.35,  0.30,  2.50,  0.01  /)
 
 rdata=0.
 
 do ilat=1,sibdim(2)
   do ilon=1,sibdim(1)
-    nsum=sum(landdata(ilon,ilat,1:13))
-    if (nsum.gt.0.) then
-      tmphc=dot_product(landdata(ilon,ilat,1:13),1./log(zmin*10./xhc(:)))/nsum
+    nsum=sum(landdata(ilon,ilat,1:41))
+    if (nsum>0.) then
+      tmphc=dot_product(landdata(ilon,ilat,1:41),1./log(zmin*10./xhc(1:41)))/nsum
       tmphc=zmin*10.*exp(-1./tmphc)
       do i=1,mthrng
         rl = 0.5*laidata(ilon,ilat,i-1)
@@ -1584,16 +1647,20 @@ implicit none
 
 integer, dimension(1:2), intent(in) :: sibdim
 integer, dimension(1:sibdim(1),1:sibdim(2)), intent(out) :: tdata
-real, dimension(1:sibdim(1),1:sibdim(2),0:13), intent(in) :: landdata
+real, dimension(1:sibdim(1),1:sibdim(2),0:42), intent(in) :: landdata
 real, dimension(1:sibdim(1),1:sibdim(2),0:8), intent(in) :: soildata
 real, dimension(1:sibdim(1),1:sibdim(2)), intent(in) :: lsdata
 integer ilon,ilat,pos(1),i
 
 do ilon=1,sibdim(1)
   do ilat=1,sibdim(2)
-    pos=Maxloc(landdata(ilon,ilat,1:13))
-    if (nint(lsdata(ilon,ilat))==1) then
-      tdata(ilon,ilat)=0 ! water
+    pos=Maxloc(landdata(ilon,ilat,1:41))
+    if (1-nint(lsdata(ilon,ilat))==0) then
+      if (landdata(ilon,ilat,0)>=landdata(ilon,ilat,42)) then
+        tdata(ilon,ilat)=0 ! water
+      else
+        tdata(ilon,ilat)=-1 ! in-land water  
+      end if
     else if (pos(1)==13) then
       tdata(ilon,ilat)=9 ! ice
     else
