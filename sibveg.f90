@@ -155,13 +155,14 @@ real, intent(in) :: zmin
 Character(len=*), dimension(1:nopts,1:2), intent(in) :: options
 Character(len=*), dimension(1:10), intent(in) :: fname
 Character*80, dimension(1:3) :: outputdesc
+character*90 filename
 Character*80 returnoption,csize,filedesc
 Character*47 header
 Character*9 formout
 Character*2 monthout
 real, dimension(:,:,:), allocatable :: laidata
-Real, dimension(:,:,:), allocatable :: landdata,rawlanddata,soildata,rlld,albvisdata,albnirdata,rdata
-Real, dimension(:,:), allocatable :: gridout,lsdata,urbandata,oceandata
+Real, dimension(:,:,:), allocatable :: landdata,rawlanddata,soildata,rlld,albvisdata,albnirdata
+Real, dimension(:,:), allocatable :: gridout,lsdata,urbandata,oceandata,rdata
 Real, dimension(1:3,1:2) :: alonlat
 Real, dimension(1:2) :: lonlat
 Real, dimension(1:12) :: atime
@@ -174,6 +175,7 @@ Integer, dimension(0:4) :: ncidarr
 Integer, dimension(1:6) :: adate
 Integer, dimension(1:9) :: varid
 Integer sibsize,tunit,i,j,ierr,sibmax(1),mthrng
+integer tt
 
 mthrng=1
 if (month==0) then
@@ -253,7 +255,7 @@ do i=1,sibdim(1)
 end do
 
 Deallocate(gridout,rlld,rawlanddata,oceandata)
-Allocate(idata(1:sibdim(1),1:sibdim(2)),rdata(1:sibdim(1),1:sibdim(2),1:mthrng))
+Allocate(idata(1:sibdim(1),1:sibdim(2)),rdata(1:sibdim(1),1:sibdim(2)))
 
 ! Prep nc output
 dimnum(1:2)=sibdim(1:2) ! CC grid dimensions
@@ -261,117 +263,136 @@ dimnum(3)=1 ! Turn off level
 dimnum(4)=mthrng ! Number of months in a year
 adate=0 ! Turn off date
 adate(2)=1 ! time units=months
-Call ncinitcc(ncidarr,fname(8),dimnum(1:3),dimid,adate)
-outputdesc=(/ 'soil', 'Soil classification', 'none' /)
-Call ncaddvargen(ncidarr,outputdesc,5,2,varid(2),1.,0.)
-outputdesc=(/ 'albvis', 'Albedo (VIS)', '' /)
-Call ncaddvargen(ncidarr,outputdesc,5,3,varid(3),1.,0.)
-outputdesc=(/ 'albnir', 'Albedo (NIR)', '' /)
-Call ncaddvargen(ncidarr,outputdesc,5,3,varid(4),1.,0.)
-outputdesc=(/ 'rsmin', 'RSmin', '' /)
-Call ncaddvargen(ncidarr,outputdesc,5,3,varid(5),1.,0.)
-outputdesc=(/ 'rough', 'Roughness length', 'm' /)
-Call ncaddvargen(ncidarr,outputdesc,5,3,varid(6),1.,0.)
-outputdesc=(/ 'lai', 'Leaf Area Index', '' /)
-Call ncaddvargen(ncidarr,outputdesc,5,3,varid(7),1.,0.)
-outputdesc=(/ 'landtype', 'Land-use classification', 'none' /)
-Call ncaddvargen(ncidarr,outputdesc,5,2,varid(8),1.,0.)
-outputdesc=(/ 'urban', 'Urban fraction', 'none' /)
-Call ncaddvargen(ncidarr,outputdesc,5,2,varid(9),1.,0.)
 
-call ncatt(ncidarr,'lon0',lonlat(1))
-call ncatt(ncidarr,'lat0',lonlat(2))
-call ncatt(ncidarr,'schmidt',schmidt)
+do tt=1,mthrng
+  write(6,*) "Writing month ",tt,"/",mthrng
+  
+  if (mthrng==1) then
+    filename=fname(8)
+  else
+    write(filename,"(A,'.',I2.2)") trim(fname(8)),tt
+  end if
 
-Call ncenddef(ncidarr)
-alonlat(:,1)=(/ 1., real(sibdim(1)), 1. /)
-alonlat(:,2)=(/ 1., real(sibdim(2)), 1. /)
-alvl=1.
-if (mthrng==12) then
-  Do i=1,12
-    atime(i)=Real(i) ! Define Months
+  Call ncinitcc(ncidarr,filename,dimnum(1:3),dimid,adate)
+  outputdesc(1)='soil'
+  outputdesc(2)='Soil classification'
+  outputdesc(3)='none'
+  Call ncaddvargen(ncidarr,outputdesc,5,2,varid(2),1.,0.)
+  outputdesc(1)='albvis'
+  outputdesc(2)='Soil albedo (VIS)'
+  outputdesc(3)=''
+  Call ncaddvargen(ncidarr,outputdesc,5,3,varid(3),1.,0.)
+  outputdesc(1)='albnir'
+  outputdesc(2)='Soil albedo (NIR)'
+  outputdesc(3)=''
+  Call ncaddvargen(ncidarr,outputdesc,5,3,varid(4),1.,0.)
+  outputdesc(1)='rsmin'
+  outputdesc(2)='RSmin'
+  outputdesc(3)=''
+  Call ncaddvargen(ncidarr,outputdesc,5,3,varid(5),1.,0.)
+  outputdesc(1)='rough'
+  outputdesc(2)='Roughness length'
+  outputdesc(3)='m'
+  Call ncaddvargen(ncidarr,outputdesc,5,3,varid(6),1.,0.)
+  outputdesc(1)='lai'
+  outputdesc(2)='Leaf Area Index'
+  outputdesc(3)=''
+  Call ncaddvargen(ncidarr,outputdesc,5,3,varid(7),1.,0.)
+  outputdesc(1)='landtype'
+  outputdesc(2)='Land-use classification'
+  outputdesc(3)='none'
+  Call ncaddvargen(ncidarr,outputdesc,5,2,varid(8),1.,0.)
+  outputdesc(1)='urban'
+  outputdesc(2)='Urban fraction'
+  outputdesc(3)='none'
+  Call ncaddvargen(ncidarr,outputdesc,5,2,varid(9),1.,0.)
+
+  call ncatt(ncidarr,'lon0',lonlat(1))
+  call ncatt(ncidarr,'lat0',lonlat(2))
+  call ncatt(ncidarr,'schmidt',schmidt)
+
+  Call ncenddef(ncidarr)
+  alonlat(:,1)=(/ 1., real(sibdim(1)), 1. /)
+  alonlat(:,2)=(/ 1., real(sibdim(2)), 1. /)
+  alvl=1.
+  if (mthrng==12) then
+    atime(1)=Real(tt) ! Define Months
+  else
+    atime(1)=real(month)
+  end if
+  Call nclonlatgen(ncidarr,dimid,alonlat,alvl,atime,dimnum)
+
+
+  ! Write soil type
+  Write(6,*) 'Write soil type.'
+  Call calsoilnear(landdata,soildata,lsdata,sibdim,idata)
+  dimcount=(/ sibdim(1), sibdim(2), 1, 1 /)
+  rdata(:,:)=real(idata)
+  Call ncwritedatgen(ncidarr,rdata(:,:),dimcount,varid(2))
+
+  ! Write albedo file
+  Write(6,*) 'Write albedo.'
+  dimcount=(/ sibdim(1), sibdim(2), 1, 1 /)
+  Call ncwritedatgen(ncidarr,albvisdata(:,:,tt-1),dimcount,varid(3))
+  dimcount=(/ sibdim(1), sibdim(2), 1, 1 /)
+  Call ncwritedatgen(ncidarr,albnirdata(:,:,tt-1),dimcount,varid(4))
+
+  ! Write rsmin file
+  Write(6,*) 'Write rsmin.'
+  Call calrsmin(landdata,laidata(:,:,tt-1),sibdim,1,rdata)
+  Where(rdata.GT.995.)
+    rdata=995.
+  End Where
+  dimcount=(/ sibdim(1), sibdim(2), 1, 1 /)
+  Call ncwritedatgen(ncidarr,rdata,dimcount,varid(5))
+
+  ! Write roughness file
+  Write(6,*) 'Write roughness files.'
+  Call calrough(landdata,laidata(:,:,tt-1),sibdim,1,rdata,zmin)
+  Where(rdata.LT.0.01)
+    rdata=0.01
+  End Where
+  dimcount=(/ sibdim(1), sibdim(2), 1, 1 /)
+  Call ncwritedatgen(ncidarr,rdata,dimcount,varid(6))
+
+  ! Write lai file
+  Write(6,*) 'Write lai files.'
+  dimcount=(/ sibdim(1), sibdim(2), 1, 1 /)
+  Call ncwritedatgen(ncidarr,laidata(:,:,tt-1),dimcount,varid(7))
+
+  ! SiB type
+  Write(6,*) 'Write land-use type'
+  Do i=1,sibdim(1)
+    Do j=1,sibdim(2)
+      if (lsdata(i,j)>=0.5) then
+        idata(i,j)=0
+      else
+        sibmax=Maxloc(landdata(i,j,1:41))
+        idata(i,j)=sibmax(1)
+      end if
+    End do
   End do
-else
-  atime(1)=real(month)
-end if
-Call nclonlatgen(ncidarr,dimid,alonlat,alvl,atime,dimnum)
+  where (idata>13)
+    idata=idata+101-13
+  end where
+  where (idata>0.and.idata<=13)
+    idata=idata+31
+  end where
+  where (idata>100)
+    idata=idata-100
+  end where
+  dimcount=(/ sibdim(1), sibdim(2), 1, 1 /)
+  rdata(:,:)=real(idata)
+  Call ncwritedatgen(ncidarr,rdata(:,:),dimcount,varid(8))
 
+  ! Urban
+  Write(6,*) 'Write urban fraction'
+  dimcount=(/ sibdim(1), sibdim(2), 1, 1 /)
+  Call ncwritedatgen(ncidarr,urbandata,dimcount,varid(9))
 
-! Write soil type
-Write(6,*) 'Write soil type.'
-Call calsoilnear(landdata,soildata,lsdata,sibdim,idata)
-dimcount=(/ sibdim(1), sibdim(2), 1, 1 /)
-rdata(:,:,1)=real(idata)
-Call ncwritedatgen(ncidarr,rdata(:,:,1),dimcount,varid(2))
-
-! Write albedo file
-Write(6,*) 'Write albedo.'
-dimcount=(/ sibdim(1), sibdim(2), mthrng, 1 /)
-Call ncwritedatgen(ncidarr,albvisdata,dimcount,varid(3))
-dimcount=(/ sibdim(1), sibdim(2), mthrng, 1 /)
-Call ncwritedatgen(ncidarr,albnirdata,dimcount,varid(4))
-
-! Write rsmin file
-Write(6,*) 'Write rsmin.'
-Call calrsmin(landdata,laidata,sibdim,mthrng,rdata)
-Where(rdata.GT.995.)
-  rdata=995.
-End Where
-dimcount=(/ sibdim(1), sibdim(2), mthrng, 1 /)
-Call ncwritedatgen(ncidarr,rdata,dimcount,varid(5))
-
-! Write roughness file
-Write(6,*) 'Write roughness files.'
-Call calrough(landdata,laidata,sibdim,mthrng,rdata,zmin)
-Where(rdata.LT.0.01)
-  rdata=0.01
-End Where
-dimcount=(/ sibdim(1), sibdim(2), mthrng, 1 /)
-Call ncwritedatgen(ncidarr,rdata,dimcount,varid(6))
-
-! Write veg frac file
-!Write(6,*) 'Write vegetation fraction files.'
-!Call calgreen(laidata,sibdim,mthrng,rdata)
-!dimcount=(/ sibdim(1), sibdim(2), mthrng, 1 /)
-!Call ncwritedatgen(ncidarr,rdata,dimcount,varid(7))
-
-
-! Write lai file
-Write(6,*) 'Write lai files.'
-dimcount=(/ sibdim(1), sibdim(2), mthrng, 1 /)
-Call ncwritedatgen(ncidarr,laidata,dimcount,varid(7))
-
-! SiB type
-Write(6,*) 'Write land-use type'
-Do i=1,sibdim(1)
-  Do j=1,sibdim(2)
-    if (lsdata(i,j)>=0.5) then
-      idata(i,j)=0
-    else
-      sibmax=Maxloc(landdata(i,j,1:41))
-      idata(i,j)=sibmax(1)
-    end if
-  End do
-End do
-where (idata>13)
-  idata=idata+101-13
-end where
-where (idata>0.and.idata<=13)
-  idata=idata+31
-end where
-where (idata>100)
-  idata=idata-100
-end where
-dimcount=(/ sibdim(1), sibdim(2), 1, 1 /)
-rdata(:,:,1)=real(idata)
-Call ncwritedatgen(ncidarr,rdata(:,:,1),dimcount,varid(8))
-
-! Urban
-Write(6,*) 'Write urban fraction'
-dimcount=(/ sibdim(1), sibdim(2), 1, 1 /)
-Call ncwritedatgen(ncidarr,urbandata,dimcount,varid(9))
-
-Call ncclose(ncidarr)
+  Call ncclose(ncidarr)
+  
+end do
 
 Deallocate(landdata,soildata,albvisdata,albnirdata,idata,rdata,urbandata,laidata,lsdata)
 

@@ -45,13 +45,13 @@ nscale=999
 
 baselon=real(int(glonlat(1)-180.))
 rlld=tlld
-Do While (Any(rlld(:,:,1).LT.baselon))
-  Where (rlld(:,:,1).LT.baselon)
+Do While (Any(rlld(:,:,1)<baselon))
+  Where (rlld(:,:,1)<baselon)
     rlld(:,:,1)=rlld(:,:,1)+360.
   End where
 End do
-Do While (Any(rlld(:,:,1).GT.(baselon+360.)))
-  Where (rlld(:,:,1).GT.(baselon+360.))
+Do While (Any(rlld(:,:,1)>(baselon+360.)))
+  Where (rlld(:,:,1)>(baselon+360.))
     rlld(:,:,1)=rlld(:,:,1)-360.
   End where
 End do
@@ -125,7 +125,7 @@ If (fastsib) then
           Write(6,*) 'mod lldim    = ',lldim
 
           ! Bin
-          If (All(lldim.GT.0)) then
+          If (All(lldim>0)) then
 
             Allocate(coverout(lldim(1),lldim(2),0:num))
 	  
@@ -137,7 +137,7 @@ If (fastsib) then
                 Call soilread(latlon,nscale_x,lldim_x,coverout)
               Case('lai')
 	            Call kmconvert(nscale,nscale_x,lldim,lldim_x,4)
-	            if (num.eq.11) then
+	            if (num==11) then
 	              do imth=1,12
                     Call lairead(latlon,nscale_x,lldim_x,imth,coverout(:,:,imth-1))
                   end do
@@ -146,7 +146,7 @@ If (fastsib) then
                 end if
               Case('albvis','albnir')
 	            Call kmconvert(nscale,nscale_x,lldim,lldim_x,6)
-	            if (num.eq.11) then
+	            if (num==11) then
 	              do imth=1,12
                     Call albedoread(latlon,nscale_x,lldim_x,imth,coverout(:,:,imth-1),datatype)
                   end do
@@ -604,17 +604,17 @@ Do ilat=1,lldim_4(2)
     databuffer(jin(2,1):jin(2,2),jlat)=datatemp(jout(2,1):jout(2,2))
   End Do
   
-  where (databuffer.eq.0)
+  where (databuffer==0)
     databuffer=1 ! min LAI
   end where
-  where (databuffer.lt.0)
+  where (databuffer<0)
     databuffer=databuffer+256
   end where
   
   Do ilon=1,lldim_4(1)
     llint_4(1)=(ilon-1)*nscale_4
-    sermask=(databuffer(llint_4(1)+1:llint_4(1)+nscale_4,1:nscale_4).gt.0)
-    sermask=sermask.and.(databuffer(llint_4(1)+1:llint_4(1)+nscale_4,1:nscale_4).lt.100)
+    sermask=(databuffer(llint_4(1)+1:llint_4(1)+nscale_4,1:nscale_4)>0)
+    sermask=sermask.and.(databuffer(llint_4(1)+1:llint_4(1)+nscale_4,1:nscale_4)<100)
     if (Any(sermask)) then
       dataout(ilon,ilat)=real(sum(databuffer(llint_4(1)+1:llint_4(1)+nscale_4,1:nscale_4),sermask)) &
                         /(real(count(sermask))*10.)
