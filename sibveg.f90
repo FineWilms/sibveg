@@ -241,6 +241,7 @@ urbandata=min(urbandata,(1.-lsdata))
 
 ! Clean-up soil, lai, veg, albedo and urban data
 Call cleansib(landdata,lsdata,rlld,sibdim)
+print *,"soil7 ",sum(soildata),soildata(24,72,:)
 Call cleanreal(soildata,8,lsdata,rlld,sibdim)
 Call cleanreal(laidata,mthrng-1,lsdata,rlld,sibdim)
 Call cleanreal(albvisdata,mthrng-1,lsdata,rlld,sibdim)
@@ -325,9 +326,11 @@ do tt=1,mthrng
 
   ! Write soil type
   Write(6,*) 'Write soil type.'
+  print *,"soil8 ",sum(soildata),soildata(24,72,:)
   Call calsoilnear(landdata,soildata,lsdata,sibdim,idata)
   dimcount=(/ sibdim(1), sibdim(2), 1, 1 /)
   rdata(:,:)=real(idata)
+  print *,"soil9 ",maxval(rdata(:,sibdim(1)+1:2*sibdim(1))),minval(rdata(:,sibdim(1)+1:2*sibdim(1)))
   Call ncwritedatgen(ncidarr,rdata(:,:),dimcount,varid(2))
 
   ! Write albedo file

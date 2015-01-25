@@ -159,22 +159,22 @@ If (fastsib) then
             End Select
 
             Write(6,*) 'Start bin'
-            Do i=1,lldim(1)
-              Do j=1,lldim(2)
+            Do j=1,lldim(2)
+              aglat=callat(latlon(2),j,nscale)
+              Do i=1,lldim(1)
                 aglon=callon(latlon(1),i,nscale)
-                aglat=callat(latlon(2),j,nscale)
                 Call lltoijmod(aglon,aglat,alci,alcj,nface)
                 lci = nint(alci)
                 lcj = nint(alcj)
                 lcj = lcj+nface*sibdim(1)
-                If (grid(lci,lcj).GE.real(minscale)) then
-                  If (sum(coverout(i,j,:)).eq.0.) then
-	                If (countn(lci,lcj).EQ.0) Then
+                If (grid(lci,lcj)>=real(minscale)) then
+                  If (sum(coverout(i,j,:))==0.) then
+	                If (countn(lci,lcj)==0) Then
                       dataout(lci,lcj,:)=-1. ! Missing value?
                       countn(lci,lcj)=1
                     End if
                   Else
-                    If (dataout(lci,lcj,0).LT.0.) Then
+                    If (dataout(lci,lcj,0)<0.) Then
                       dataout(lci,lcj,:)=0. ! reset missing point after finding non-trival data
                       countn(lci,lcj)=0
                     End If
@@ -238,7 +238,7 @@ nscale=scalelimit
 
 latlon=(/ baselon, 90. /)
 llstore=(/ 43200/nscale , 21600/nscale /)
-msktemp=(countn.EQ.0)
+msktemp=(countn==0)
 Call searchdim(4,sll,nscale,0.,latlon,llstore,grid,msktemp,rlld,sibdim)
 Call scaleconvert(nscale,subsec,llstore,sll,sibsize)
 slonn=sll(1,1)
@@ -266,10 +266,10 @@ If (subsec.NE.0) then
       If (ny.NE.subsec) lldim(2)=lldim(2)+1
     
       ! Check if there are any points of interest on this tile
-      msktemp=(countn.EQ.0)
+      msktemp=(countn==0)
       Call searchdim(4,sll,nscale,0.,latlon,lldim,grid,msktemp,rlld,sibdim)
       Call scaleconvert(nscale,tmp,lldim,sll,sibsize)
-      If (Any(lldim(:).EQ.1)) lldim=0
+      If (Any(lldim(:)==1)) lldim=0
       
       latlon(1)=sll(1,1)
       latlon(2)=sll(2,2)
@@ -277,7 +277,7 @@ If (subsec.NE.0) then
       Write(6,*) 'mod latlon   = ',latlon
       Write(6,*) 'mod lldim    = ',lldim
 
-      If ((lldim(1).GT.0).AND.(lldim(2).GT.0)) then
+      If ((lldim(1)>0).AND.(lldim(2)>0)) then
 
         Allocate(coverout(lldim(1),lldim(2),0:num))
 	
@@ -289,7 +289,7 @@ If (subsec.NE.0) then
             Call soilread(latlon,nscale_x,lldim_x,coverout)
           Case('lai')
             Call kmconvert(nscale,nscale_x,lldim,lldim_x,4)
-            if (num.eq.11) then
+            if (num==11) then
               do imth=1,12
                 Call lairead(latlon,nscale_x,lldim_x,imth,coverout(:,:,imth-1))
               end do
@@ -298,7 +298,7 @@ If (subsec.NE.0) then
             end if
           Case('albvis','albnir')
             Call kmconvert(nscale,nscale_x,lldim,lldim_x,6)
-            if (num.eq.11) then
+            if (num==11) then
               do imth=1,12
                 Call albedoread(latlon,nscale_x,lldim_x,imth,coverout(:,:,imth-1),datatype)
               end do
@@ -310,38 +310,25 @@ If (subsec.NE.0) then
             Stop
         End Select
 
-        Do lci=1,sibdim(1)
-          Do lcj=1,sibdim(2)
-            If (countn(lci,lcj).EQ.0) then
-  
+        Do lcj=1,sibdim(2)  
+          Do lci=1,sibdim(1)
+            If (countn(lci,lcj)==0) then
               aglon=rlld(lci,lcj,1)
               aglat=rlld(lci,lcj,2)
-	      
               serlon=indexlon(aglon,latlon(1),nscale)
               serlat=indexlat(aglat,latlon(2),nscale)
-
               i=int(serlon)
               j=int(serlat)
-
-              If ((i.GE.1).AND.(i.LT.lldim(1)).AND.(j.GE.1).AND.(j.LT.lldim(2))) Then
-	      
-                ni=i+1 ! 4 point interpolation
-                nj=j+1
-	      
-                serlon=serlon-real(i)
-                serlat=serlat-real(j)
-	
-                If (datatype.eq.'land') then		
-                  covertemp(1:2,1:2,:)=coverout(i:ni,j:nj,:)
+              If ((i>=1).AND.(i<=lldim(1)).AND.(j>=1).AND.(j<=lldim(2))) Then
+                if (any(coverout(i,j,:)>0.)) then
+                  dataout(lci,lcj,:)=coverout(i,j,:)
+                  countn(lci,lcj)=1
                 else
-                  Call realfill(covertemp,coverout,lldim,i,ni,j,nj,num)
-                End if	    
-                Do k=0,num
-                  dataout(lci,lcj,k)=ipol(covertemp(:,:,k),serlon,serlat)
-                End Do
-                countn(lci,lcj)=1
+                  ! missing
+                  dataout(lci,lcj,:)=-1.
+                  countn(lci,lcj)=1
+                end if
               End If
-                
             End If
           End Do
         End Do
@@ -359,40 +346,18 @@ End If
 
 Deallocate(sermask)
 
-
-If (Any(countn.LT.1)) then
-  ! This will happen near the poles
-  Write(6,*) "Interpolation failed - Using near nbr"
-  Allocate(sermask(1:sibdim(1),1:sibdim(2)))
-  sermask(:,:)=countn(:,:).GT.0
-  If (Any(sermask)) then
-    Do lci=1,sibdim(1)
-      Do lcj=1,sibdim(2)
-        If (countn(lci,lcj).EQ.0) then
-          call findnear(pxy,lci,lcj,sermask,rlld,sibdim)
-          dataout(lci,lcj,:)=dataout(pxy(1),pxy(2),:)
-     	  countn(lci,lcj)=1
-        End if
-      End do
-    End Do
-  Else
-    Write(6,*) 'WARN: Cannot find any non-trivial near nbrs'
-    Write(6,*) '      Assume data is trivial'
-    dataout=0.
-    countn=1
-  End if	
-  Deallocate(sermask)
-End If
-
-where(dataout.lt.0.)
-  dataout=0.
-end where
+! clear missing values (e.g., ocean points)
+! These values should be fixed in igbpveg.f90
+countn=max(countn,1)
+dataout=max(dataout,0.)
 
 Do k=0,num
   dataout(:,:,k)=dataout(:,:,k)/Real(countn)
 End Do
 
-if (ozlaipatch.and.(datatype.eq.'lai')) call ozlai(sibdim,num,dataout,rlld,month)
+if (ozlaipatch.and.(datatype=='lai')) then
+  call ozlai(sibdim,num,dataout,rlld,month)
+end if
 
 Write(6,*) "Task complete"
 
