@@ -1,5 +1,5 @@
 FF = ifort
-XFLAGS = -O -fpp
+XFLAGS = -O -fpp -assume byterecl
 INC = -I $(NETCDF_ROOT)/include
 LIBS = -L $(NETCDF_ROOT)/lib -lnetcdf -lnetcdff
 
