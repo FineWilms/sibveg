@@ -18,7 +18,7 @@ Namelist/vegnml/ topofile,fastsib,                  &
                  binlimit,month,                    &
                  zmin,ozlaipatch
 
-Write(6,*) 'SIBVEG - SiB/DG 1km to CC grid (JAN-15)'
+Write(6,*) 'SIBVEG - SiB/DG 1km to CC grid (MAR-15)'
 
 ! Read switches
 nopts=1
@@ -181,7 +181,7 @@ mthrng=1
 if (month==0) then
   mthrng=12
 end if
-if ((month.lt.0).or.(month.gt.12)) then
+if ((month<0).or.(month>12)) then
   write(6,*) "ERROR: Invalid month ",month
   stop
 end if
@@ -199,6 +199,7 @@ Call readtopography(tunit,fname(1),sibdim,lonlat,schmidt,dsx,header)
 Write(6,*) "Dimension : ",sibdim
 Write(6,*) "lon0,lat0 : ",lonlat
 Write(6,*) "Schmidt   : ",schmidt
+
 Allocate(gridout(1:sibdim(1),1:sibdim(2)),rlld(1:sibdim(1),1:sibdim(2),1:2))
 Allocate(rawlanddata(1:sibdim(1),1:sibdim(2),0:81),albvisdata(1:sibdim(1),1:sibdim(2),0:mthrng-1))
 Allocate(laidata(1:sibdim(1),1:sibdim(2),0:mthrng-1),albnirdata(1:sibdim(1),1:sibdim(2),0:mthrng-1))
@@ -216,21 +217,26 @@ Call getdata(laidata,    lonlat,gridout,rlld,sibdim,mthrng-1,sibsize,'lai',   fa
 Call getdata(albvisdata, lonlat,gridout,rlld,sibdim,mthrng-1,sibsize,'albvis',fastsib,ozlaipatch,binlimit,month)
 Call getdata(albnirdata, lonlat,gridout,rlld,sibdim,mthrng-1,sibsize,'albnir',fastsib,ozlaipatch,binlimit,month)
 
+deallocate(gridout)
+
 write(6,*) "Preparing data..."
 ! extract appended urban data
 urbandata(:,:)=sum(rawlanddata(:,:,30:50),3)+rawlanddata(:,:,81)
-! extract ocean data
-where ((rawlanddata(:,:,19)+rawlanddata(:,:,79)+rawlanddata(:,:,80))>0.)
-  oceandata=rawlanddata(:,:,19)/(rawlanddata(:,:,19)+rawlanddata(:,:,79)+rawlanddata(:,:,80))
-elsewhere
-  oceandata=0.
-end where
-lsdata=real(nint(rawlanddata(:,:,19)+rawlanddata(:,:,79)+rawlanddata(:,:,80)))
+
 ! remove SiB classes 14-50 that contain urban
 Call sibfix(landdata,rawlanddata,rlld,sibdim)
 
+deallocate(rawlanddata)
+
 if (siblsmask) then
   write(6,*) "Using SiB land/sea mask"
+  ! extract ocean data
+  where ((landdata(:,:,0)+landdata(:,:,42))>0.)
+    oceandata=landdata(:,:,0)/(landdata(:,:,0)+landdata(:,:,42))
+  elsewhere
+    oceandata=0.
+  end where
+  lsdata=real(nint(landdata(:,:,0)+landdata(:,:,42)))
   call cleantopo(tunit,fname(1),fname(10),lsdata,oceandata,sibdim)
 else
   write(6,*) "Using topography land/sea mask"
@@ -254,7 +260,7 @@ do i=1,sibdim(1)
   end do
 end do
 
-Deallocate(gridout,rlld,rawlanddata,oceandata)
+Deallocate(rlld,oceandata)
 Allocate(idata(1:sibdim(1),1:sibdim(2)),rdata(1:sibdim(1),1:sibdim(2)))
 
 ! Prep nc output

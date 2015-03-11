@@ -81,10 +81,10 @@ If (fastsib) then
 
   ! Step over scales
   mode=0
-  Do While (Any(countn.EQ.0).AND.(nscale.GT.scalelimit))
+  Do While (Any(countn==0).AND.(nscale>scalelimit))
 
     latlon=(/ baselon, 90. /)
-    msktemp=(countn.EQ.0)
+    msktemp=(countn==0)
     Call findsmallscale(nscale,scalelimit,latlon,llstore,grid,msktemp,rlld,subsec,sll,sibsize,sibdim)
 
     slonn=sll(1,1)
@@ -98,7 +98,7 @@ If (fastsib) then
     Write(6,*) 'sll          = ',sll
     Write(6,*) 'llstore      = ',llstore
 
-    If (subsec.NE.0) then
+    If (subsec/=0) then
 
       Do nx=1,subsec
         Do ny=1,subsec
@@ -113,7 +113,7 @@ If (fastsib) then
           Write(6,*) 'orig lldim   = ',lldim
 
           ! Check if there are any points of interest on this tile
-          msktemp=(countn.EQ.0)
+          msktemp=(countn==0)
           Call searchdim(mode,sll,nscale,real(nscale),latlon,lldim,grid,msktemp,rlld,sibdim)
           Call scaleconvert(nscale,tmp,lldim,sll,sibsize)
           mode=2
@@ -159,31 +159,59 @@ If (fastsib) then
             End Select
 
             Write(6,*) 'Start bin'
-            Do j=1,lldim(2)
-              aglat=callat(latlon(2),j,nscale)
-              Do i=1,lldim(1)
-                aglon=callon(latlon(1),i,nscale)
-                Call lltoijmod(aglon,aglat,alci,alcj,nface)
-                lci = nint(alci)
-                lcj = nint(alcj)
-                lcj = lcj+nface*sibdim(1)
-                If (grid(lci,lcj)>=real(minscale)) then
-                  If (sum(coverout(i,j,:))==0.) then
-	                If (countn(lci,lcj)==0) Then
-                      dataout(lci,lcj,:)=-1. ! Missing value?
-                      countn(lci,lcj)=1
-                    End if
-                  Else
-                    If (dataout(lci,lcj,0)<0.) Then
-                      dataout(lci,lcj,:)=0. ! reset missing point after finding non-trival data
-                      countn(lci,lcj)=0
+            if (datatype=='land') then
+              do j=1,lldim(2)
+                aglat=callat(latlon(2),j,nscale)
+                do i=1,lldim(1)           
+                  aglon=callon(latlon(1),i,nscale)
+                  call lltoijmod(aglon,aglat,alci,alcj,nface)
+                  lci = nint(alci)
+                  lcj = nint(alcj)
+                  lcj = lcj+nface*sibdim(1)
+                  if (grid(lci,lcj)>=real(minscale)) then
+                    if (sum(abs(coverout(i,j,:)))<0.001) then
+                      if (countn(lci,lcj)==0) then
+                        dataout(lci,lcj,:)=-1. ! Missing value?
+                        countn(lci,lcj)=1
+                      end if
+                    else
+                      if (dataout(lci,lcj,0)<0.) then
+                        dataout(lci,lcj,:)=0. ! reset missing point after finding non-trival data
+                        countn(lci,lcj)=0
+                      end if
+                      dataout(lci,lcj,:)=dataout(lci,lcj,:)+coverout(i,j,:)
+                      countn(lci,lcj)=countn(lci,lcj)+1
+                    end if
+                  end if
+                end do
+              end do
+            else
+              Do j=1,lldim(2)
+                aglat=callat(latlon(2),j,nscale)
+                Do i=1,lldim(1)
+                  aglon=callon(latlon(1),i,nscale)
+                  Call lltoijmod(aglon,aglat,alci,alcj,nface)
+                  lci = nint(alci)
+                  lcj = nint(alcj)
+                  lcj = lcj+nface*sibdim(1)
+                  If (grid(lci,lcj)>=real(minscale)) then
+                    If (sum(coverout(i,j,:))<=0.01) then
+	                  If (countn(lci,lcj)==0) Then
+                        dataout(lci,lcj,:)=-1. ! Missing value?
+                        countn(lci,lcj)=1
+                      End if
+                    Else
+                      If (dataout(lci,lcj,0)<0.) Then
+                        dataout(lci,lcj,:)=0. ! reset missing point after finding non-trival data
+                        countn(lci,lcj)=0
+                      End If
+                      dataout(lci,lcj,:)=dataout(lci,lcj,:)+coverout(i,j,:)
+                      countn(lci,lcj)=countn(lci,lcj)+1
                     End If
-                    dataout(lci,lcj,:)=dataout(lci,lcj,:)+coverout(i,j,:)
-                    countn(lci,lcj)=countn(lci,lcj)+1
-                  End If
-                End if
+                  End if
+                End Do
               End Do
-            End Do
+            end if
             Write(6,*) 'Bin complete'
 
             Deallocate(coverout)
@@ -209,7 +237,7 @@ Else
     Case('soil')
       Call soilstream(sibdim,dataout,countn)
     Case('lai')
-      if (num.eq.11) then
+      if (num==11) then
         do imth=1,12
           Call laistream(sibdim,imth,dataout(:,:,imth-1),countn)
         end do
@@ -217,7 +245,7 @@ Else
         Call laistream(sibdim,month,dataout(:,:,0),countn)
       end if
     Case('albvis','albnir')
-      if (num.eq.11) then
+      if (num==11) then
         do imth=1,12
           Call albedostream(sibdim,imth,dataout(:,:,imth-1),countn,datatype)
         end do
@@ -231,8 +259,8 @@ Else
 
 End If
 
-! Interpolate
-Write(6,*) 'Interpolate'
+! Fill
+Write(6,*) 'Fill'
 Allocate(sermask(1:2,1:2))
 nscale=scalelimit
 
@@ -249,7 +277,7 @@ Write(6,*) 'subsec       = ',subsec
 Write(6,*) 'sll          = ',sll
 Write(6,*) 'llstore      = ',llstore
 
-If (subsec.NE.0) then
+If (subsec/=0) then
   Do nx=1,subsec
     Do ny=1,subsec
 
@@ -262,8 +290,8 @@ If (subsec.NE.0) then
       Write(6,*) 'orig lldim   = ',lldim
 
       ! overlap tiles for interpolation
-      If (nx.NE.subsec) lldim(1)=lldim(1)+1
-      If (ny.NE.subsec) lldim(2)=lldim(2)+1
+      If (nx/=subsec) lldim(1)=lldim(1)+1
+      If (ny/=subsec) lldim(2)=lldim(2)+1
     
       ! Check if there are any points of interest on this tile
       msktemp=(countn==0)
@@ -277,7 +305,7 @@ If (subsec.NE.0) then
       Write(6,*) 'mod latlon   = ',latlon
       Write(6,*) 'mod lldim    = ',lldim
 
-      If ((lldim(1)>0).AND.(lldim(2)>0)) then
+      If (lldim(1)>0.AND.lldim(2)>0) then
 
         Allocate(coverout(lldim(1),lldim(2),0:num))
 	
@@ -319,7 +347,7 @@ If (subsec.NE.0) then
               serlat=indexlat(aglat,latlon(2),nscale)
               i=int(serlon)
               j=int(serlat)
-              If ((i>=1).AND.(i<=lldim(1)).AND.(j>=1).AND.(j<=lldim(2))) Then
+              If (i>0.AND.i<=lldim(1).AND.j>0.AND.j<=lldim(2)) Then
                 if (any(coverout(i,j,:)>0.)) then
                   dataout(lci,lcj,:)=coverout(i,j,:)
                   countn(lci,lcj)=1
@@ -388,6 +416,7 @@ integer, dimension(860,700) :: idean
 integer tix,tiy,jj,ii
 integer ni1,nj1,ni2,nj2,ni3,nj3,ni4,nj4
 
+! Read Dean Graetz data for Australia
 open(11,file='dean31_int',form='formatted',status='old')
 read(11,*) ni1,nj1
 read(11,*) ni2,nj2
@@ -419,11 +448,11 @@ Do ilat=1,lldim(2)
   Do jlat=1,nscale
     recpos=llint(2)+jlat
     Read(10,REC=recpos) datatemp
-    ! Dean G's data
-    tiy=nint((45.+90.-(real(llint(2)+jlat)-0.5)/120.)/0.05-0.5)
+    ! Dean Graetz's data
+    tiy=nint((135.+0.025-(real(llint(2)+jlat)-0.5)/120.)/0.05)
     if (tiy>=1.and.tiy<=700) then
       do ilon=1,43200
-        tix=nint(((real(ilon)-0.5)/120.-180.-112.)/0.05+0.5)
+        tix=nint(((real(ilon)-0.5)/120.-180.-112.+0.025)/0.05)
         if (tix>=1.and.tix<=860) then
           datatemp(ilon)=idean(tix,tiy)+50
           if (datatemp(ilon)==50) datatemp(ilon)=19 ! water
