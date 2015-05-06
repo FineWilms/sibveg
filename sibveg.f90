@@ -18,7 +18,7 @@ Namelist/vegnml/ topofile,fastsib,                  &
                  binlimit,month,                    &
                  zmin,ozlaipatch
 
-Write(6,*) 'SIBVEG - SiB/DG 1km to CC grid (MAR-15)'
+Write(6,*) 'SIBVEG - SiB/DG 1km to CC grid (MAY-15)'
 
 ! Read switches
 nopts=1
@@ -386,7 +386,7 @@ do tt=1,mthrng
     idata=idata+31
   end where
   where (idata>100)
-    idata=idata-100
+    idata=idata-101
   end where
   dimcount=(/ sibdim(1), sibdim(2), 1, 1 /)
   rdata(:,:)=real(idata)
