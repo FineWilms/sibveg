@@ -18,4 +18,5 @@
 /setxyz_m.f90 -text
 /sibread.f90 -text
 /sibveg.f90 -text
+/stacklimit.c -text
 /xyzinfo_m.f90 -text

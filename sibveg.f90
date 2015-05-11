@@ -18,6 +18,11 @@ Namelist/vegnml/ topofile,fastsib,                  &
                  binlimit,month,                    &
                  zmin,ozlaipatch
 
+#ifndef stacklimit
+! For linux only - removes stacklimit on all processors
+call setstacklimit(-1)
+#endif 
+
 Write(6,*) 'SIBVEG - SiB/DG 1km to CC grid (MAY-15)'
 
 ! Read switches
