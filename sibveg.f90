@@ -623,7 +623,7 @@ Character*47 dc
 Real, dimension(sibdim(1),sibdim(2)), intent(in) :: lsmskin,oceanin
 Real, dimension(sibdim(1),sibdim(2)) :: topo,sd,lsmsk
 real, dimension(sibdim(2)) :: dum
-Real ra,rb,rc,rd
+Real, dimension(1) :: ra,rb,rc,rd
 ilout=Min(sibdim(1),30) ! To be compatiable with terread
 
 Write(6,*) "Adjust topography data for consistancy with land-sea mask"
@@ -635,9 +635,9 @@ if (ierr==0) then
   npos(1)=sibdim(1)
   npos(2)=sibdim(2)
   npos(3)=1
-  ierr=nf_get_att_real(ncid,nf_global,'lon0',ra)
-  ierr=nf_get_att_real(ncid,nf_global,'lat0',rb)
-  ierr=nf_get_att_real(ncid,nf_global,'schmidt',rc)
+  ierr=nf_get_att_real(ncid,nf_global,'lon0',ra(1))
+  ierr=nf_get_att_real(ncid,nf_global,'lat0',rb(1))
+  ierr=nf_get_att_real(ncid,nf_global,'schmidt',rc(1))
   ierr=nf_inq_varid(ncid,'zs',varid)
   ierr=nf_get_vara_real(ncid,varid,spos,npos,topo)
   ierr=nf_inq_varid(ncid,'lsm',varid)
