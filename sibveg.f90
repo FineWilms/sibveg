@@ -607,9 +607,9 @@ end
 
 Subroutine cleantopo(topounit,toponame,topoout,lsmskin,oceanin,sibdim)
 
-Implicit None
+use netcdf_m
 
-include 'netcdf.inc'
+Implicit None
 
 Integer, intent(in) :: topounit
 Integer, dimension(2), intent(in) :: sibdim
@@ -689,12 +689,12 @@ if (lnctopo==1) then
     dum(i)=real(i)
   end do
   ierr=nf_inq_varid(ncid,'longitude',varid)
-  ierr=nf_put_vara_real(ncid,varid,spos(1),npos(1),dum)
+  ierr=nf_put_vara_real(ncid,varid,spos(1:1),npos(1:1),dum(1:sibdim(1)))
   ierr=nf_inq_varid(ncid,'latitude',varid)
-  ierr=nf_put_vara_real(ncid,varid,spos(2),npos(2),dum)
+  ierr=nf_put_vara_real(ncid,varid,spos(2:2),npos(2:2),dum(1:sibdim(2)))
   ierr=nf_inq_varid(ncid,'time',varid)
   dum(1)=0.
-  ierr=nf_put_vara_real(ncid,varid,spos(3),npos(3),dum(1))
+  ierr=nf_put_vara_real(ncid,varid,spos(3:3),npos(3:3),dum(1:1))
   ierr=nf_inq_varid(ncid,'zs',varid)
   ierr=nf_put_vara_real(ncid,varid,spos,npos,topo)
   ierr=nf_inq_varid(ncid,'lsm',varid)

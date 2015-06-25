@@ -7,7 +7,7 @@ LIBS = -L $(NETCDF_ROOT)/lib -lnetcdf -lnetcdff
 OBJT = sibveg.o sibread.o readswitch.o ncwrite.o misc.o ccinterp.o\
        latltoij_m.o setxyz_m.o xyzinfo_m.o newmpar_m.o \
        indices_m.o parm_m.o precis_m.o ind_m.o jimco_m.o jimcc_m.o \
-       jim_utils.o nfft_m.o ncread.o stacklimit.o
+       jim_utils.o nfft_m.o ncread.o netcdf_m.o stacklimit.o
 
 sibveg :$(OBJT)
 	$(FF) $(XFLAGS) $(OBJT) $(LIBS) -o sibveg
@@ -26,7 +26,7 @@ stacklimit.o: stacklimit.c
 .f.o:
 	$(FF) -c $(XFLAGS) $(INC) $<
 
-sibveg.o : ccinterp.o ncread.o
+sibveg.o : ccinterp.o netcdf_m.o
 sibread.o : ccinterp.o
 ccinterp.o : ccinterp.f90 setxyz_m.o xyzinfo_m.o latltoij_m.o newmpar_m.o
 latltoij_m.o : latltoij_m.f90 xyzinfo_m.o newmpar_m.o
@@ -41,3 +41,5 @@ jimcc_m.o : jimcc_m.f90 parm_m.o precis_m.o
 jimco_m.o : jimco_m.f90 precis_m.o jim_utils.o nfft_m.o 
 jim_utils.o : jim_utils.f90 precis_m.o 
 nfft_m.o : nfft_m.f90 precis_m.o 
+ncread.o : netcdf_m.o
+ncwrite.o : netcdf_m.o
