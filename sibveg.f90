@@ -44,7 +44,7 @@ Namelist/vegnml/ topofile,fastsib,                  &
 call setstacklimit(-1)
 #endif 
 
-Write(6,*) 'SIBVEG - SiB/DG 1km to CC grid (MAY-15)'
+Write(6,*) 'SIBVEG - SiB/DG 1km to CC grid (JUL-15)'
 
 ! Read switches
 nopts=1
@@ -681,9 +681,12 @@ If (ierr.NE.0) then
   Stop
 End if
 
+! MJT notes - SiB describes oceans and lakes with the same index,
+! so we cannot split them here.
+
 lsmsk=Real(1-nint(lsmskin))
 where ((nint(oceanin)==1).and.(nint(lsmskin)==1))
-  topo(:,:)=0.
+!  topo(:,:)=0.
   sd(:,:)=0.
 end where
 
