@@ -475,8 +475,10 @@ Do ilat=1,lldim(2)
       do ilon=1,43200
         tix=nint(((real(ilon)-0.5)/120.-180.-112.+0.025)/0.05)
         if (tix>=1.and.tix<=860) then
-          datatemp(ilon)=idean(tix,tiy)+50
-          if (datatemp(ilon)==50) datatemp(ilon)=19 ! water
+          if (datatemp(ilon)<30.or.datatemp(ilon)>50) then ! urban fix - keep USGS urban
+            datatemp(ilon)=idean(tix,tiy)+50
+            if (datatemp(ilon)==50) datatemp(ilon)=19 ! water
+          end if
         end if
       end do
     end if
@@ -745,6 +747,7 @@ Integer*1, dimension(1:43200) :: databuffer
 Integer ilat,ilon,lci,lcj,nface,cpos
 integer ii,jj,tix,tiy
 integer ni1,nj1,ni2,nj2,ni3,nj3,ni4,nj4
+logical testdomain, testurban
 
 coverout=0
 countn=0
@@ -776,14 +779,15 @@ Do ilat=1,21600
   
   Do ilon=1,43200
     aglon=callon(-180.,ilon,1)
-    
-    if (.not.(aglat>-45..and.aglat<-10..and.aglon>112..and.aglon<154.5)) then
+    cpos=databuffer(ilon)
+    testdomain=aglat>-45..and.aglat<-10..and.aglon>112..and.aglon<154.5
+    testurban=cpos>=30.and.cpos<=50
+    if ((.not.testdomain).or.testurban) then
       Call lltoijmod(aglon,aglat,alci,alcj,nface)
       lci = nint(alci)
       lcj = nint(alcj)
       lcj = lcj+nface*sibdim(1)
     
-      cpos=databuffer(ilon)
       coverout(lci,lcj,cpos)=coverout(lci,lcj,cpos)+1.
       countn(lci,lcj)=countn(lci,lcj)+1
     end if
@@ -801,7 +805,7 @@ do tiy=1,700
     lcj = nint(alcj)
     lcj = lcj+nface*sibdim(1)
     
-    cpos=databuffer(ilon)+50
+    cpos=idean(tix,tiy)+50
     if (cpos==50) cpos=19
     coverout(lci,lcj,cpos)=coverout(lci,lcj,cpos)+1.
     countn(lci,lcj)=countn(lci,lcj)+1
@@ -1168,7 +1172,8 @@ If (Any(coverin(i:ni,j:nj,:).gt.0.)) then
           sermask(1:ib-ia+1,1:jb-ja+1)=sermask(1:ib-ia+1,1:jb-ja+1).AND.(coverin(ia:ib,ja:jb,tk).gt.0.)
         End Do
         Do tk=0,num
-          coverout(ti-i+1,tj-j+1,tk)=Sum(coverin(ia:ib,ja:jb,tk),sermask(1:ib-ia+1,1:jb-ja+1))/Real(Count(sermask(1:ib-ia+1,1:jb-ja+1)))
+          coverout(ti-i+1,tj-j+1,tk)=Sum(coverin(ia:ib,ja:jb,tk),sermask(1:ib-ia+1,1:jb-ja+1)) &
+            /Real(Count(sermask(1:ib-ia+1,1:jb-ja+1)))
         End do
       Else
         coverout(ti-i+1,tj-j+1,:)=coverin(ti,tj,:)
@@ -1342,7 +1347,7 @@ Integer, dimension(1:2,1:2,1:2) :: posll
 Integer i,j
 Integer rndup
 Logical, dimension(1:sibdim(1),1:sibdim(2)) :: sermask
-Integer, dimension(1:sibdim(1),1:sibdim(2)), intent(in) :: maskn
+Logical, dimension(1:sibdim(1),1:sibdim(2)), intent(in) :: maskn
 
 tlld=rlld
 

@@ -44,7 +44,7 @@ Namelist/vegnml/ topofile,fastsib,                  &
 call setstacklimit(-1)
 #endif 
 
-Write(6,*) 'SIBVEG - SiB/DG 1km to CC grid (JUL-15)'
+Write(6,*) 'SIBVEG - SiB/DG 1km to CC grid (SEP-15)'
 
 ! Read switches
 nopts=1
@@ -247,7 +247,7 @@ deallocate(gridout)
 
 write(6,*) "Preparing data..."
 ! extract appended urban data
-urbandata(:,:)=sum(rawlanddata(:,:,30:50),3)+rawlanddata(:,:,81)
+urbandata(:,:)=sum(rawlanddata(:,:,30:50),3) !+rawlanddata(:,:,81) ! neglect Dean's urban
 
 ! remove SiB classes 14-50 that contain urban
 Call sibfix(landdata,rawlanddata,rlld,sibdim)
@@ -450,9 +450,13 @@ integer i,ilon,ilat,pxy(2)
 real nsum,wsum
 
 landtemp(:,:,0:22)=rawdata(:,:,0:22)
-do i=31,50
-  landtemp(:,:,i-30)=landtemp(:,:,i-30)+rawdata(:,:,i)
+do i=31,50 ! remove urban attached to SiB
+  sermsk=rlld(:,:,1)>112..and.rlld(:,:,1)<154.5.and.rlld(:,:,2)>-45..and.rlld(:,:,2)<-10.
+  where (.not.sermsk)
+    landtemp(:,:,i-30)=landtemp(:,:,i-30)+rawdata(:,:,i)
+  end where
 end do
+
 landdata(:,:,1:12) =landtemp(:,:,1:12)                 ! SIB's
 landdata(:,:,0)    =landtemp(:,:,19)                   ! redefine ocean
 landdata(:,:,13)   =landtemp(:,:,20)                   ! redefine ice
@@ -605,13 +609,13 @@ datain=dataout
 
 sermsk=.true.
 do ilon=0,num
-  sermsk=sermsk.and.(datain(:,:,ilon).gt.0.)
+  sermsk=sermsk.and.(datain(:,:,ilon)>0.)
 end do
 if (.not.any(sermsk)) return
 
 do ilon=1,sibdim(1)
   do ilat=1,sibdim(2)
-    if ((1-nint(lsdata(ilon,ilat)).eq.1).and.(.not.sermsk(ilon,ilat))) then
+    if ((1-nint(lsdata(ilon,ilat))==1).and.(.not.sermsk(ilon,ilat))) then
       call findnear(pxy,ilon,ilat,sermsk,rlld,sibdim)
       dataout(ilon,ilat,:)=datain(pxy(1),pxy(2),:)
     end if
@@ -681,8 +685,8 @@ If (ierr.NE.0) then
   Stop
 End if
 
-! MJT notes - SiB describes oceans and lakes with the same index,
-! so we cannot split them here.
+! MJT notes - SiB merges both lakes and ocean together, so we
+! cannot split them here anymore.
 
 lsmsk=Real(1-nint(lsmskin))
 where ((nint(oceanin)==1).and.(nint(lsmskin)==1))
