@@ -798,17 +798,20 @@ End Do
 do tiy=1,700
   aglat=-44.975+real(tiy-1)*0.05
   do tix=1,850
-    aglon=112.25+real(tix-1)*0.05
+    aglon=112.025+real(tix-1)*0.05
 
     Call lltoijmod(aglon,aglat,alci,alcj,nface)
     lci = nint(alci)
     lcj = nint(alcj)
     lcj = lcj+nface*sibdim(1)
     
-    cpos=idean(tix,tiy)+50
-    if (cpos==50) cpos=19
-    coverout(lci,lcj,cpos)=coverout(lci,lcj,cpos)+1.
-    countn(lci,lcj)=countn(lci,lcj)+1
+    testurban=sum(coverout(lci,lcj,30:50))>0.
+    if (.not.testurban) then
+      cpos=idean(tix,tiy)+50
+      if (cpos==50) cpos=19
+      coverout(lci,lcj,cpos)=coverout(lci,lcj,cpos)+1.
+      countn(lci,lcj)=countn(lci,lcj)+1
+    end if
   end do
 end do
 
