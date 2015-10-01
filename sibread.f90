@@ -28,7 +28,7 @@
 ! or datatype=soil).
 !
 
-Subroutine getdata(dataout,glonlat,grid,tlld,sibdim,num,sibsize,datatype,fastsib,ozlaipatch,binlimit,month)
+Subroutine getdata(dataout,glonlat,grid,tlld,sibdim,num,sibsize,datatype,fastsib,ozlaipatch,binlimit,month,usedean)
 
 Use ccinterp
 
@@ -54,7 +54,7 @@ Real, dimension(1:2,1:2) :: sll
 Real, dimension(1:2,1:2,0:num) :: covertemp
 Real aglon,aglat,alci,alcj,serlon,serlat,slonn,slatx,elon,elat,tscale,baselon
 Real ipol,callon,callat,indexlon,indexlat
-Logical, intent(in) :: fastsib,ozlaipatch
+Logical, intent(in) :: fastsib,ozlaipatch,usedean
 Logical, dimension(:,:), allocatable :: sermask
 logical, dimension(sibdim(1),sibdim(2)) :: msktemp
 
@@ -152,7 +152,7 @@ If (fastsib) then
 	  
             Select Case(datatype)
 	          Case('land')
-                Call sibread(latlon,nscale,lldim,coverout)
+                Call sibread(latlon,nscale,lldim,coverout,usedean)
               Case('soil')
 	            Call kmconvert(nscale,nscale_x,lldim,lldim_x,4)
                 Call soilread(latlon,nscale_x,lldim_x,coverout)
@@ -254,7 +254,7 @@ Else
 
   Select Case(datatype)
     Case('land')
-      Call sibstream(sibdim,dataout,countn)
+      Call sibstream(sibdim,dataout,countn,usedean)
     Case('soil')
       Call soilstream(sibdim,dataout,countn)
     Case('lai')
@@ -332,7 +332,7 @@ If (subsec/=0) then
 	
         Select Case(datatype)
           Case('land')
-            Call sibread(latlon,nscale,lldim,coverout)
+            Call sibread(latlon,nscale,lldim,coverout,usedean)
           Case('soil')
             Call kmconvert(nscale,nscale_x,lldim,lldim_x,4)
             Call soilread(latlon,nscale_x,lldim_x,coverout)
@@ -418,10 +418,11 @@ End
 ! This subroutine reads sib data down to nscale=1km resolution
 !
 
-Subroutine sibread(latlon,nscale,lldim,coverout)
+Subroutine sibread(latlon,nscale,lldim,coverout,usedean)
 
 Implicit None
 
+logical, intent(in) :: usedean
 Integer, intent(in) :: nscale
 Real, dimension(1:2), intent(in) :: latlon
 Integer, dimension(1:2), intent(in) :: lldim
@@ -438,15 +439,17 @@ integer tix,tiy,jj,ii
 integer ni1,nj1,ni2,nj2,ni3,nj3,ni4,nj4
 
 ! Read Dean Graetz data for Australia
-open(11,file='dean31_int',form='formatted',status='old')
-read(11,*) ni1,nj1
-read(11,*) ni2,nj2
-read(11,*) ni3,nj3
-read(11,*) ni4,nj4
-do jj=1,700
-  read(11,*) (idean(ii,jj),ii=1,860)
-end do
-close(11)
+if ( usedean ) then
+  open(11,file='dean31_int',form='formatted',status='old')
+  read(11,*) ni1,nj1
+  read(11,*) ni2,nj2
+  read(11,*) ni3,nj3
+  read(11,*) ni4,nj4
+  do jj=1,700
+    read(11,*) (idean(ii,jj),ii=1,860)
+  end do
+  close(11)
+end if
 
 ! Must be compiled using 1 byte record lengths
 Open(10,FILE='gsib2u.img',ACCESS='DIRECT',FORM='UNFORMATTED',RECL=43200)
@@ -470,17 +473,19 @@ Do ilat=1,lldim(2)
     recpos=llint(2)+jlat
     Read(10,REC=recpos) datatemp
     ! Dean Graetz's data
-    tiy=nint((135.+0.025-(real(llint(2)+jlat)-0.5)/120.)/0.05)
-    if (tiy>=1.and.tiy<=700) then
-      do ilon=1,43200
-        tix=nint(((real(ilon)-0.5)/120.-180.-112.+0.025)/0.05)
-        if (tix>=1.and.tix<=860) then
-          if (datatemp(ilon)<30.or.datatemp(ilon)>50) then ! urban fix - keep USGS urban
-            datatemp(ilon)=idean(tix,tiy)+50
-            if (datatemp(ilon)==50) datatemp(ilon)=19 ! water
+    if ( usedean ) then
+      tiy=nint((135.+0.025-(real(llint(2)+jlat)-0.5)/120.)/0.05)
+      if (tiy>=1.and.tiy<=700) then
+        do ilon=1,43200
+          tix=nint(((real(ilon)-0.5)/120.-180.-112.+0.025)/0.05)
+          if (tix>=1.and.tix<=860) then
+            if (datatemp(ilon)<30.or.datatemp(ilon)>50) then ! urban fix - keep USGS urban
+              datatemp(ilon)=idean(tix,tiy)+50
+              if (datatemp(ilon)==50) datatemp(ilon)=19 ! water
+            end if
           end if
-        end if
-      end do
+        end do
+      end if
     end if
     
     ! Shift lon to zero
@@ -731,12 +736,13 @@ End
 ! (i.e., no storage, simply read and bin)
 !
 
-Subroutine sibstream(sibdim,coverout,countn)
+Subroutine sibstream(sibdim,coverout,countn,usedean)
 
 Use ccinterp
 
 Implicit None
 
+logical, intent(in) :: usedean
 Integer, dimension(2), intent(in) :: sibdim
 Real, dimension(1:sibdim(1),1:sibdim(2),0:81), intent(out) :: coverout
 Real aglon,aglat,alci,alcj
@@ -754,15 +760,17 @@ countn=0
 
 Write(6,*) "Read USGS data (stream)"
 
-open(11,file='dean31_int',form='formatted',status='old')
-read(11,*) ni1,nj1
-read(11,*) ni2,nj2
-read(11,*) ni3,nj3
-read(11,*) ni4,nj4
-do jj=1,700
-  read(11,*) (idean(ii,jj),ii=1,860)
-end do
-close(11)
+if ( usedean ) then
+  open(11,file='dean31_int',form='formatted',status='old')
+  read(11,*) ni1,nj1
+  read(11,*) ni2,nj2
+  read(11,*) ni3,nj3
+  read(11,*) ni4,nj4
+  do jj=1,700
+    read(11,*) (idean(ii,jj),ii=1,860)
+  end do
+  close(11)
+end if
 
 ! Must be compiled using 1 byte rsibrd lengths
 Open(10,FILE='gsib2u.img',ACCESS='DIRECT',FORM='UNFORMATTED',RECL=43200)
@@ -782,7 +790,7 @@ Do ilat=1,21600
     cpos=databuffer(ilon)
     testdomain=aglat>-45..and.aglat<-10..and.aglon>112..and.aglon<154.5
     testurban=cpos>=30.and.cpos<=50
-    if ((.not.testdomain).or.testurban) then
+    if ((.not.testdomain).or.testurban.or.(.not.usedean)) then
       Call lltoijmod(aglon,aglat,alci,alcj,nface)
       lci = nint(alci)
       lcj = nint(alcj)
@@ -795,25 +803,27 @@ Do ilat=1,21600
   End Do
 End Do
 
-do tiy=1,700
-  aglat=-44.975+real(tiy-1)*0.05
-  do tix=1,850
-    aglon=112.025+real(tix-1)*0.05
+if ( usedean ) then
+  do tiy=1,700
+    aglat=-44.975+real(tiy-1)*0.05
+    do tix=1,850
+      aglon=112.025+real(tix-1)*0.05
 
-    Call lltoijmod(aglon,aglat,alci,alcj,nface)
-    lci = nint(alci)
-    lcj = nint(alcj)
-    lcj = lcj+nface*sibdim(1)
+      Call lltoijmod(aglon,aglat,alci,alcj,nface)
+      lci = nint(alci)
+      lcj = nint(alcj)
+      lcj = lcj+nface*sibdim(1)
     
-    testurban=sum(coverout(lci,lcj,30:50))>0.
-    if (.not.testurban) then
-      cpos=idean(tix,tiy)+50
-      if (cpos==50) cpos=19
-      coverout(lci,lcj,cpos)=coverout(lci,lcj,cpos)+1.
-      countn(lci,lcj)=countn(lci,lcj)+1
-    end if
+      testurban=sum(coverout(lci,lcj,30:50))>0.
+      if (.not.testurban) then
+        cpos=idean(tix,tiy)+50
+        if (cpos==50) cpos=19
+        coverout(lci,lcj,cpos)=coverout(lci,lcj,cpos)+1.
+        countn(lci,lcj)=countn(lci,lcj)+1
+      end if
+    end do
   end do
-end do
+end if
 
 Close(10)
 

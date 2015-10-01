@@ -32,12 +32,14 @@ Character*80 landtypeout
 Character*80 newtopofile
 Integer binlimit, nopts, month
 real zmin
-Logical fastsib,siblsmask,ozlaipatch
+Logical fastsib,siblsmask,ozlaipatch,usedean
+
+usedean = .true.
 
 Namelist/vegnml/ topofile,fastsib,                  &
                  landtypeout,siblsmask,newtopofile, &
                  binlimit,month,                    &
-                 zmin,ozlaipatch
+                 zmin,ozlaipatch,usedean
 
 #ifndef stacklimit
 ! For linux only - removes stacklimit on all processors
@@ -65,7 +67,7 @@ fname(1)=topofile
 fname(8)=landtypeout
 fname(10)=newtopofile
 
-Call createveg(options,nopts,fname,fastsib,siblsmask,ozlaipatch,month,binlimit,zmin)
+Call createveg(options,nopts,fname,fastsib,siblsmask,ozlaipatch,month,binlimit,zmin,usedean)
 
 Deallocate(options)
 
@@ -103,6 +105,7 @@ Write(6,*) '    siblsmask=t'
 Write(6,*) '    ozlaipatch=f'
 Write(6,*) '    binlimit=2'
 Write(6,*) '    zmin=40.'
+Write(6,*) '    usedean=t'
 Write(6,*) '  &end'
 Write(6,*)
 Write(6,*) '  where:'
@@ -120,6 +123,7 @@ Write(6,*) '                    the aggregated land-use data (see notes'
 Write(6,*) '                    below).'
 Write(6,*) '    zmin          = Reference height for blending roughness lengths'
 Write(6,*) '                    (usually set to the first model level)'
+Write(6,*) '    usedean       = Use 6km Australian land-use data'
 Write(6,*)
 Write(6,*) 'NOTES: Fastsib mode will speed up the code by aggregating'
 Write(6,*) '       land-use data at a coarser resolution before'
@@ -169,13 +173,13 @@ End
 ! This subroutine processes the sib data
 !
 
-Subroutine createveg(options,nopts,fname,fastsib,siblsmask,ozlaipatch,month,binlimit,zmin)
+Subroutine createveg(options,nopts,fname,fastsib,siblsmask,ozlaipatch,month,binlimit,zmin,usedean)
 
 Use ccinterp
 
 Implicit None
 
-Logical, intent(in) :: fastsib,siblsmask,ozlaipatch
+Logical, intent(in) :: fastsib,siblsmask,ozlaipatch,usedean
 Integer, intent(in) :: nopts,binlimit,month
 real, intent(in) :: zmin
 Character(len=*), dimension(1:nopts,1:2), intent(in) :: options
@@ -237,11 +241,11 @@ Allocate(oceandata(1:sibdim(1),1:sibdim(2)))
 Call ccgetgrid(rlld,gridout,sibdim,lonlat,schmidt,ds)
 
 ! Read sib data
-Call getdata(rawlanddata,lonlat,gridout,rlld,sibdim,81,      sibsize,'land',  fastsib,ozlaipatch,binlimit,month)
-Call getdata(soildata,   lonlat,gridout,rlld,sibdim,8,       sibsize,'soil',  fastsib,ozlaipatch,binlimit,month)
-Call getdata(laidata,    lonlat,gridout,rlld,sibdim,mthrng-1,sibsize,'lai',   fastsib,ozlaipatch,binlimit,month)
-Call getdata(albvisdata, lonlat,gridout,rlld,sibdim,mthrng-1,sibsize,'albvis',fastsib,ozlaipatch,binlimit,month)
-Call getdata(albnirdata, lonlat,gridout,rlld,sibdim,mthrng-1,sibsize,'albnir',fastsib,ozlaipatch,binlimit,month)
+Call getdata(rawlanddata,lonlat,gridout,rlld,sibdim,81,      sibsize,'land',  fastsib,ozlaipatch,binlimit,month,usedean)
+Call getdata(soildata,   lonlat,gridout,rlld,sibdim,8,       sibsize,'soil',  fastsib,ozlaipatch,binlimit,month,usedean)
+Call getdata(laidata,    lonlat,gridout,rlld,sibdim,mthrng-1,sibsize,'lai',   fastsib,ozlaipatch,binlimit,month,usedean)
+Call getdata(albvisdata, lonlat,gridout,rlld,sibdim,mthrng-1,sibsize,'albvis',fastsib,ozlaipatch,binlimit,month,usedean)
+Call getdata(albnirdata, lonlat,gridout,rlld,sibdim,mthrng-1,sibsize,'albnir',fastsib,ozlaipatch,binlimit,month,usedean)
 
 deallocate(gridout)
 
