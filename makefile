@@ -1,8 +1,16 @@
 FF = ifort
-XFLAGS = -O -fpp -assume byterecl
+XFLAGS = -O -assume byterecl
 INC = -I $(NETCDF_ROOT)/include
 LIBS = -L $(NETCDF_ROOT)/lib -lnetcdf -lnetcdff
+PPFLAG90 = -fpp
+PPFLAG77 = -fpp
 
+ifeq ($(GFORTRAN),yes)
+FF = gfortran
+XFLAGS = -O2 -mtune=native -march=native -I $(NETCDF_ROOT)/include
+PPFLAG90 = -x f95-cpp-input
+PPFLAG77 = -x f77-cpp-input
+endif
 
 OBJT = sibveg.o sibread.o readswitch.o ncwrite.o misc.o ccinterp.o\
        latltoij_m.o setxyz_m.o xyzinfo_m.o newmpar_m.o \
@@ -13,7 +21,7 @@ sibveg :$(OBJT)
 	$(FF) $(XFLAGS) $(OBJT) $(LIBS) -o sibveg
 
 clean:
-	rm *.o core *.mod
+	rm *.o core *.mod sibveg
 # This section gives the rules for building object modules.
 
 .SUFFIXES:.f90
@@ -22,9 +30,9 @@ stacklimit.o: stacklimit.c
 	cc -c stacklimit.c
 
 .f90.o:
-	$(FF) -c $(XFLAGS) $(INC) $<
+	$(FF) -c $(XFLAGS) $(INC) $(PPFLAG90) $<
 .f.o:
-	$(FF) -c $(XFLAGS) $(INC) $<
+	$(FF) -c $(XFLAGS) $(INC) $(PPFLAG77) $<
 
 sibveg.o : ccinterp.o netcdf_m.o
 sibread.o : ccinterp.o

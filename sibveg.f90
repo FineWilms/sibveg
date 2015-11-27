@@ -32,9 +32,8 @@ Character*80 landtypeout
 Character*80 newtopofile
 Integer binlimit, nopts, month
 real zmin
-Logical fastsib,siblsmask,ozlaipatch,usedean
-
-usedean = .true.
+Logical fastsib,siblsmask,ozlaipatch
+logical :: usedean = .true.
 
 Namelist/vegnml/ topofile,fastsib,                  &
                  landtypeout,siblsmask,newtopofile, &
