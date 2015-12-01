@@ -1700,7 +1700,7 @@ do ilon=1,sibdim(1)
   do ilat=1,sibdim(2)
     pos=Maxloc(landdata(ilon,ilat,1:41))
     if (1-nint(lsdata(ilon,ilat))==0) then
-      if (landdata(ilon,ilat,0)>=landdata(ilon,ilat,42)) then
+      if (landdata(ilon,ilat,0)>=sum(landdata(ilon,ilat,1:))) then
         tdata(ilon,ilat)=0 ! water
       else
         tdata(ilon,ilat)=-1 ! in-land water  

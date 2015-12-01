@@ -45,7 +45,7 @@ Namelist/vegnml/ topofile,fastsib,                  &
 call setstacklimit(-1)
 #endif 
 
-Write(6,*) 'SIBVEG - SiB/DG 1km to CC grid (SEP-15)'
+Write(6,*) 'SIBVEG - SiB/DG 1km to CC grid (DEC-15)'
 
 ! Read switches
 nopts=1
@@ -526,13 +526,17 @@ do ilat=1,sibdim(2)
       nsum=sum(dataout(ilon,ilat,1:41))
       dataout(ilon,ilat,1:41)=dataout(ilon,ilat,1:41)*(1.-lsdata(ilon,ilat))/nsum
     else
+      dataout(ilon,ilat,42)=sum(dataout(ilon,ilat,1:42))
       dataout(ilon,ilat,1:41)=0.
     end if
     if (lsdata(ilon,ilat)>=0.5) then
       if (.not.ocnmsk(ilon,ilat)) then
-        call findnear(pxy,ilon,ilat,ocnmsk,rlld,sibdim)
-        dataout(ilon,ilat,0)=datain(pxy(1),pxy(2),0)
-        dataout(ilon,ilat,42)=datain(pxy(1),pxy(2),42)
+        !call findnear(pxy,ilon,ilat,ocnmsk,rlld,sibdim)
+        !dataout(ilon,ilat,0)=datain(pxy(1),pxy(2),0)
+        !dataout(ilon,ilat,42)=datain(pxy(1),pxy(2),42)
+        dataout(ilon,ilat,0)=0.
+        dataout(ilon,ilat,1:41)=0.
+        dataout(ilon,ilat,42)=1. ! in-land water
       end if
       wsum=dataout(ilon,ilat,0)+dataout(ilon,ilat,42)
       dataout(ilon,ilat,0)=dataout(ilon,ilat,0)*lsdata(ilon,ilat)/wsum
@@ -544,6 +548,124 @@ do ilat=1,sibdim(2)
   end do
 end do
 
+call fill_cc_water(dataout,sibdim(1),43,1,43)
+
+return
+end
+    
+subroutine fill_cc_water(a_io,ik,rng,salt,fresh)
+      
+implicit none
+      
+integer, intent(in) :: salt, fresh, ik, rng
+integer :: nrem, i, ii, iq, ind, j, n, neighb, ndiag
+integer :: iminb,imaxb,jminb,jmaxb
+integer, save :: oldik = 0
+integer, dimension(:,:), allocatable, save :: ic
+integer, dimension(0:5) :: imin,imax,jmin,jmax
+integer, dimension(0:5) :: npann,npane,npanw,npans
+integer, dimension(ik*ik*6,rng), intent(inout) :: a_io         ! input and output array
+real, dimension(ik*ik*6,rng) :: a
+logical, dimension(4) :: mask
+logical nochangeflag
+data npann/1,103,3,105,5,101/,npane/102,2,104,4,100,0/
+data npanw/5,105,1,101,3,103/,npans/104,0,100,2,102,4/
+ind(i,j,n)=i+(j-1)*ik+n*ik*ik  ! *** for n=0,npanels
+
+if (ik/=oldik) then
+ oldik=ik
+ if (allocated(ic)) then
+   deallocate(ic)
+ end if
+ allocate(ic(4,ik*ik*6))
+ do iq=1,ik*ik*6
+   ic(1,iq)=iq+ik
+   ic(2,iq)=iq-ik
+   ic(3,iq)=iq+1
+   ic(4,iq)=iq-1
+ enddo   ! iq loop
+ do n=0,5
+  if(npann(n)<100)then
+   do ii=1,ik
+     ic(1,ind(ii,ik,n))=ind(ii,1,npann(n))
+   enddo    ! ii loop
+  else
+   do ii=1,ik
+     ic(1,ind(ii,ik,n))=ind(1,ik+1-ii,npann(n)-100)
+   enddo    ! ii loop
+  endif      ! (npann(n)<100)
+  if(npane(n)<100)then
+   do ii=1,ik
+     ic(3,ind(ik,ii,n))=ind(1,ii,npane(n))
+   enddo    ! ii loop
+  else
+   do ii=1,ik
+     ic(3,ind(ik,ii,n))=ind(ik+1-ii,1,npane(n)-100)
+   enddo    ! ii loop
+  endif      ! (npane(n)<100)
+  if(npanw(n)<100)then
+   do ii=1,ik
+     ic(4,ind(1,ii,n))=ind(ik,ii,npanw(n))
+   enddo    ! ii loop
+  else
+   do ii=1,ik
+     ic(4,ind(1,ii,n))=ind(ik+1-ii,ik,npanw(n)-100)
+   enddo    ! ii loop
+  endif      ! (npanw(n)<100)
+  if(npans(n)<100)then
+   do ii=1,ik
+     ic(2,ind(ii,1,n))=ind(ii,ik,npans(n))
+   enddo    ! ii loop
+  else
+   do ii=1,ik
+     ic(2,ind(ii,1,n))=ind(ik,ik+1-ii,npans(n)-100)
+   enddo    ! ii loop
+  endif      ! (npans(n)<100)
+ enddo      ! n loop
+end if ! oldik/=ik
+
+imin=1
+imax=ik
+jmin=1
+jmax=ik
+          
+nrem = 1    ! Just for first iteration
+do while ( nrem > 0)
+  nrem=0
+  a(:,:)=a_io(:,:)
+  nochangeflag=.true.
+  do n=0,5
+    iminb=ik
+    imaxb=1
+    jminb=ik
+    jmaxb=1
+    do j=jmin(n),jmax(n)
+      do i=imin(n),imax(n)
+        iq=ind(i,j,n)
+        if(a(iq,fresh)>0.)then
+          mask=a(ic(:,iq),salt)>0.
+          neighb=count(mask)
+          if(neighb>0)then
+            a_io(iq,salt)=a(iq,salt)+a(iq,fresh)
+            a_io(iq,fresh)=0.
+            nochangeflag=.false.
+          else
+            iminb=min(i,iminb)
+            imaxb=max(i,imaxb)
+            jminb=min(j,jminb)
+            jmaxb=max(j,jmaxb)
+            nrem=nrem+1   ! current number of points without a neighbour
+          endif
+        endif
+      end do
+    end do
+    imin(n)=iminb
+    imax(n)=imaxb
+    jmin(n)=jminb
+    jmax(n)=jmaxb
+  end do
+  if ( nochangeflag ) exit
+end do
 return
 end
 
